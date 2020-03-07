@@ -19,11 +19,16 @@
  */
 
 #include "mygym.h"
+
+#include "environment.h"
+#include "flows/flow.h"
+
 #include "ns3/object.h"
 #include "ns3/core-module.h"
 #include "ns3/wifi-module.h"
 #include "ns3/node-list.h"
 #include "ns3/log.h"
+
 #include <sstream>
 #include <iostream>
 
@@ -35,10 +40,15 @@ NS_OBJECT_ENSURE_REGISTERED (MyGymEnv);
 
 MyGymEnv::MyGymEnv ()
 {
+	std::cout << "Construction time." << std::endl;
   NS_LOG_FUNCTION (this);
   m_interval = Seconds (0.1);
-
   Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
+
+	std::stringstream ss;
+	std::ifstream inputFile("input/flow.json");
+	ss << inputFile.rdbuf();
+	flows = getFlows(ss.str());
 }
 
 MyGymEnv::MyGymEnv (Time stepTime)

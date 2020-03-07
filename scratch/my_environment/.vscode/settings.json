@@ -1,5 +1,17 @@
 {
 	"python.linting.pylintEnabled": true,
 	"python.linting.enabled": true,
-	"python.pythonPath": "~/school/research/proj_1/venv/bin/python",
+	"python.pythonPath": "/home/pieter/school/research/proj_1/venv/bin/python",
+	"files.associations": {
+		"array": "cpp",
+		"hash_map": "cpp",
+		"bitset": "cpp",
+		"deque": "cpp",
+		"string": "cpp",
+		"vector": "cpp",
+		"string_view": "cpp",
+		"unordered_map": "cpp",
+		"valarray": "cpp",
+		"ostream": "cpp"
+	},
 }

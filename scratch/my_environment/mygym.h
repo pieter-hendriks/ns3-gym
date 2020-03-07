@@ -24,6 +24,8 @@
 
 #include "ns3/opengym-module.h"
 #include "ns3/nstime.h"
+class Flow;
+
 
 namespace ns3 {
 
@@ -48,6 +50,7 @@ private:
   void ScheduleNextStateRead();
 
   Time m_interval;
+  std::vector<Flow> flows;
 };
 
 }

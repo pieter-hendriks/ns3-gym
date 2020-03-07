@@ -3,9 +3,11 @@
         {
             "name": "Linux",
             "includePath": [
+                "${workspaceFolder}",
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/../../build",
-                "${workspaceFolder}/../../build/ns3"
+                "${workspaceFolder}/../../build/ns3",
+                "${workspaceFolder}/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",
