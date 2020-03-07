@@ -1,0 +1,5 @@
+{
+	"python.linting.pylintEnabled": true,
+	"python.linting.enabled": true,
+	"python.pythonPath": "~/school/research/proj_1/venv/bin/python",
+}
