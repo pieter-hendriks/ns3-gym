@@ -40,7 +40,7 @@ NS_OBJECT_ENSURE_REGISTERED (MyGymEnv);
 
 MyGymEnv::MyGymEnv ()
 {
-	std::cout << "Construction time." << std::endl;
+	NS_LOG_UNCOND("MyGymEnv construction ()" << 123);
   NS_LOG_FUNCTION (this);
   m_interval = Seconds (0.1);
   Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
@@ -53,10 +53,15 @@ MyGymEnv::MyGymEnv ()
 
 MyGymEnv::MyGymEnv (Time stepTime)
 {
+	NS_LOG_UNCOND("MyGymEnv construction (Time)" << 123);
   NS_LOG_FUNCTION (this);
   m_interval = stepTime;
-
   Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
+
+	std::stringstream ss;
+	std::ifstream inputFile("input/flow.json");
+	ss << inputFile.rdbuf();
+	flows = getFlows(ss.str());
 }
 
 void
@@ -94,6 +99,10 @@ Define observation space
 Ptr<OpenGymSpace>
 MyGymEnv::GetObservationSpace ()
 {
+	// We give our agent information here. What information that is, exactly is TBD.
+
+	NS_LOG_UNCOND("TESTING: Flows.size() = " << flows.size());
+
   uint32_t nodeNum = 5;
   float low = 0.0;
   float high = 10.0;
