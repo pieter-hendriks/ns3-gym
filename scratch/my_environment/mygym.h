@@ -23,17 +23,24 @@
 #define MY_GYM_ENTITY_H
 
 #include "ns3/opengym-module.h"
+#include "ns3/application-container.h"
 #include "ns3/nstime.h"
-class Flow;
+#include "ns3/ipv4-address.h"
+#include "node/mynode.h"
+#include <map>
+#include "flows/flow.h"
 
-
+class FlowGenerator;
 namespace ns3 {
 
 class MyGymEnv : public OpenGymEnv
 {
 public:
-  MyGymEnv ();
-  MyGymEnv (Time stepTime);
+  friend class TypeId;
+
+  MyGymEnv (Time stepTime, double speed, MyNode* node, Ipv4Address remoteAddress);
+  MyGymEnv (const MyGymEnv&) = delete;
+  MyGymEnv& operator=(const MyGymEnv&) = delete;
   virtual ~MyGymEnv ();
   static TypeId GetTypeId (void);
   virtual void DoDispose ();
@@ -46,11 +53,20 @@ public:
   std::string GetExtraInfo();
   bool ExecuteActions(Ptr<OpenGymDataContainer> action);
 
-private:
-  void ScheduleNextStateRead();
+  void addSentPacket(std::uint64_t size, Flow& flow);
 
+private:
+  MyGymEnv ();
+  void ScheduleNextStateRead();
+  void initializeFlows(Ipv4Address address);
   Time m_interval;
   std::vector<Flow> flows;
+  std::uint64_t droppedPacketSize;
+  std::uint64_t sentPacketSize;
+  double linkSpeed;
+  MyNode* myNode;
+  std::vector<FlowGenerator*> applications;
+
 };
 
 }

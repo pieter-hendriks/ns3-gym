@@ -20,17 +20,25 @@
 
 #include "mygym.h"
 
-#include "environment.h"
 #include "flows/flow.h"
+#include "flows/flowgenerator.h"
 
 #include "ns3/object.h"
 #include "ns3/core-module.h"
 #include "ns3/wifi-module.h"
 #include "ns3/node-list.h"
 #include "ns3/log.h"
-
+#include "ns3/packet-socket-factory.h"
+#include "ns3/packet-socket.h"
+#include "ns3/packet-socket-client.h"
 #include <sstream>
 #include <iostream>
+#include <filesystem>
+#include <limits>
+#include <algorithm>
+#include <utility>
+#include <stdexcept>
+#define MYGYM_FLOW_INPUTFILE_LOCATION "scratch/my_environment/input/flow.json"
 
 namespace ns3 {
 
@@ -38,30 +46,50 @@ NS_LOG_COMPONENT_DEFINE ("MyGymEnv");
 
 NS_OBJECT_ENSURE_REGISTERED (MyGymEnv);
 
-MyGymEnv::MyGymEnv ()
-{
-	NS_LOG_UNCOND("MyGymEnv construction ()" << 123);
-  NS_LOG_FUNCTION (this);
-  m_interval = Seconds (0.1);
-  Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
-
-	std::stringstream ss;
-	std::ifstream inputFile("input/flow.json");
-	ss << inputFile.rdbuf();
-	flows = getFlows(ss.str());
+MyGymEnv::MyGymEnv() {
+  throw std::runtime_error("Default constructor called.");
 }
 
-MyGymEnv::MyGymEnv (Time stepTime)
+void MyGymEnv::initializeFlows(Ipv4Address address)
 {
-	NS_LOG_UNCOND("MyGymEnv construction (Time)" << 123);
+  std::stringstream ss;
+	std::ifstream inputFile(MYGYM_FLOW_INPUTFILE_LOCATION);
+	ss << inputFile.rdbuf();
+
+	flows = getFlows(ss.str());
+
+  std::vector<std::pair<std::reference_wrapper<Flow>, std::uint64_t>> pairs;
+  ns3::NodeContainer nodes;
+  nodes.Add(myNode);
+  for (auto& flow : flows)
+  {
+    pairs.emplace_back(std::make_pair<std::reference_wrapper<Flow>, std::uint64_t>(std::ref(flow), 4608ULL));
+  }
+  this->applications = FlowGenerator::Install(this, std::move(pairs), *myNode);
+  for (auto application : applications)
+  {
+    application->SetRemote("ns3::PacketSocketFactory", address);
+  }
+}
+
+// MyGymEnv::MyGymEnv () // = delete;
+// {
+//   NS_LOG_FUNCTION (this);
+//   m_interval = Seconds (0.1);
+//   Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
+
+// 	initializeFlows();
+// }
+
+MyGymEnv::MyGymEnv (Time stepTime, double linkspeed, MyNode* node, Ipv4Address address)
+: droppedPacketSize(0), sentPacketSize{0}, linkSpeed{linkspeed}, myNode{node}
+{
+  std::cout << "Setting linkspeed = " << linkSpeed << std::endl;
   NS_LOG_FUNCTION (this);
   m_interval = stepTime;
   Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
 
-	std::stringstream ss;
-	std::ifstream inputFile("input/flow.json");
-	ss << inputFile.rdbuf();
-	flows = getFlows(ss.str());
+  initializeFlows(address);
 }
 
 void
@@ -93,33 +121,39 @@ MyGymEnv::DoDispose ()
   NS_LOG_FUNCTION (this);
 }
 
+std::uint64_t getSimulatorTimestampInSeconds()
+{
+  return Simulator::Now().ToInteger(ns3::Time::Unit::S);
+}
+
+void MyGymEnv::addSentPacket(std::uint64_t size, Flow& flow)
+{
+  // std::cout << "Add sent packet: " << size << ", " << flow.flow_uid << std::endl;
+  // std::cout << "sentPacketSize: " << sentPacketSize << "\ntimestamp: " << getSimulatorTimestampInSeconds() << "\nspeed: " << linkSpeed << std::endl;
+  // std::cout << (this->sentPacketSize + size) / double(getSimulatorTimestampInSeconds()) << " > " << linkSpeed << " ?" <<std::endl;
+  if ((this->sentPacketSize + size) / (double(getSimulatorTimestampInSeconds()) + 1) > this->linkSpeed)
+  {
+    //NS_LOG_UNCOND("Dropping packet for flow " << flow.flow_uid << ", of size " << size);
+    this->droppedPacketSize += size;
+  }
+  else
+  {
+    //NS_LOG_UNCOND("Sending packet for flow " << flow.flow_uid << ", of size " << size);
+    this->sentPacketSize += size;
+    flow.addSentPacket(size);
+  }
+}
+
 /*
 Define observation space
 */
 Ptr<OpenGymSpace>
 MyGymEnv::GetObservationSpace ()
 {
-	// We give our agent information here. What information that is, exactly is TBD.
+  auto shape = std::vector<std::uint32_t>{static_cast<unsigned>(flows.size()) * 3,};
 
-	NS_LOG_UNCOND("TESTING: Flows.size() = " << flows.size());
-
-  uint32_t nodeNum = 5;
-  float low = 0.0;
-  float high = 10.0;
-  std::vector<uint32_t> shape = {
-      nodeNum,
-  };
-  std::string dtype = TypeNameGet<uint32_t> ();
-
-  Ptr<OpenGymDiscreteSpace> discrete = CreateObject<OpenGymDiscreteSpace> (nodeNum);
-  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
-
-  Ptr<OpenGymDictSpace> space = CreateObject<OpenGymDictSpace> ();
-  space->Add ("box", box);
-  space->Add ("discrete", discrete);
-
-  NS_LOG_UNCOND ("MyGetObservationSpace: " << space);
-  return space;
+  Ptr<OpenGymBoxSpace> flowBox = CreateObject<OpenGymBoxSpace>(0, std::numeric_limits<float>::infinity(), shape, TypeNameGet<float> ());
+  return flowBox;
 }
 
 /*
@@ -128,23 +162,9 @@ Define action space
 Ptr<OpenGymSpace>
 MyGymEnv::GetActionSpace ()
 {
-  uint32_t nodeNum = 5;
-  float low = 0.0;
-  float high = 10.0;
-  std::vector<uint32_t> shape = {
-      nodeNum,
-  };
-  std::string dtype = TypeNameGet<uint32_t> ();
-
-  Ptr<OpenGymDiscreteSpace> discrete = CreateObject<OpenGymDiscreteSpace> (nodeNum);
-  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
-
-  Ptr<OpenGymDictSpace> space = CreateObject<OpenGymDictSpace> ();
-  space->Add ("box", box);
-  space->Add ("discrete", discrete);
-
-  NS_LOG_UNCOND ("MyGetActionSpace: " << space);
-  return space;
+  // Allow as many flows as it wants; up to 2^32, which we'll assume is bigger than will ever be relevant.
+  Ptr<OpenGymDiscreteSpace> flowToggleSpace = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<unsigned>::max());
+  return flowToggleSpace;
 }
 
 /*
@@ -153,16 +173,19 @@ Define game over condition
 bool
 MyGymEnv::GetGameOver ()
 {
-  bool isGameOver = false;
-  bool test = false;
-  static float stepCounter = 0.0;
-  stepCounter += 1;
-  if (stepCounter == 10 && test)
-    {
-      isGameOver = true;
-    }
-  NS_LOG_UNCOND ("MyGetGameOver: " << isGameOver);
-  return isGameOver;
+  NS_LOG_UNCOND("Game over check: ");
+  if (std::all_of(flows.begin(), flows.end(), [](auto& flow) -> bool { return flow.isCompleted(); }))
+  {
+    NS_LOG_UNCOND("Game over because all flows are completed.");
+    return true;
+  }
+  // if (this->droppedPacketSize > 100000000)
+  // {
+  //   NS_LOG_UNCOND("Game over because too much packet loss.");
+  //   return true; // Stop simming if dropped > 100Mb
+  // }
+  NS_LOG_UNCOND("Game over = false");
+  return false;
 }
 
 /*
@@ -171,40 +194,20 @@ Collect observations
 Ptr<OpenGymDataContainer>
 MyGymEnv::GetObservation ()
 {
-  uint32_t nodeNum = 5;
-  uint32_t low = 0.0;
-  uint32_t high = 10.0;
-  Ptr<UniformRandomVariable> rngInt = CreateObject<UniformRandomVariable> ();
+  auto shape = std::vector<std::uint32_t>{static_cast<unsigned>(flows.size()) * 3};
+  Ptr<OpenGymBoxContainer<float> > flowBox = CreateObject<OpenGymBoxContainer<float> >(shape);
 
-  std::vector<uint32_t> shape = {
-      nodeNum,
-  };
-  Ptr<OpenGymBoxContainer<uint32_t>> box = CreateObject<OpenGymBoxContainer<uint32_t>> (shape);
-
-  // generate random data
-  for (uint32_t i = 0; i < nodeNum; i++)
-    {
-      uint32_t value = rngInt->GetInteger (low, high);
-      box->AddValue (value);
-    }
-
-  Ptr<OpenGymDiscreteContainer> discrete = CreateObject<OpenGymDiscreteContainer> (nodeNum);
-  uint32_t value = rngInt->GetInteger (low, high);
-  discrete->SetValue (value);
-
-  Ptr<OpenGymTupleContainer> data = CreateObject<OpenGymTupleContainer> ();
-  data->Add (box);
-  data->Add (discrete);
-
-  // Print data from tuple
-  Ptr<OpenGymBoxContainer<uint32_t>> mbox =
-      DynamicCast<OpenGymBoxContainer<uint32_t>> (data->Get (0));
-  Ptr<OpenGymDiscreteContainer> mdiscrete = DynamicCast<OpenGymDiscreteContainer> (data->Get (1));
-  NS_LOG_UNCOND ("MyGetObservation: " << data);
-  NS_LOG_UNCOND ("---" << mbox);
-  NS_LOG_UNCOND ("---" << mdiscrete);
-
-  return data;
+  for (auto& flow : flows)
+  {
+    std::cout << "flow fractions (" << flow.flow_uid << "): " << flow.getCurrentPeriodFraction() << ", " << flow.getCurrentSentFraction() << std::endl;
+    flowBox->AddValue(flow.getCurrentSentFraction());
+    flowBox->AddValue(flow.getCurrentPeriodFraction());
+    if (flow.isCompleted())
+      flowBox->AddValue(1);
+    else
+      flowBox->AddValue(0);
+  }
+  return flowBox;
 }
 
 /*
@@ -213,8 +216,18 @@ Define reward function
 float
 MyGymEnv::GetReward ()
 {
-  static float reward = 0.0;
-  reward += 1;
+  float reward = 0.0;
+  for (auto& flow : flows)
+  {
+    if (flow.isCompleted())
+    {
+      reward += flow.point_value;
+    }
+  }
+
+  reward -= this->droppedPacketSize / 1000000.0;
+  reward += this->sentPacketSize / 100000000.0;
+
   return reward;
 }
 
@@ -224,10 +237,8 @@ Define extra info. Optional
 std::string
 MyGymEnv::GetExtraInfo ()
 {
-  std::string myInfo = "testInfo";
-  myInfo += "|123";
-  NS_LOG_UNCOND ("MyGetExtraInfo: " << myInfo);
-  return myInfo;
+//   NS_LOG_UNCOND("Empty extra info returned.");
+  return "";
 }
 
 /*
@@ -236,15 +247,31 @@ Execute received actions
 bool
 MyGymEnv::ExecuteActions (Ptr<OpenGymDataContainer> action)
 {
-  Ptr<OpenGymDictContainer> dict = DynamicCast<OpenGymDictContainer> (action);
-  Ptr<OpenGymBoxContainer<uint32_t>> box =
-      DynamicCast<OpenGymBoxContainer<uint32_t>> (dict->Get ("box"));
-  Ptr<OpenGymDiscreteContainer> discrete =
-      DynamicCast<OpenGymDiscreteContainer> (dict->Get ("discrete"));
+  Ptr<OpenGymBoxContainer<float>> flowToggles = DynamicCast<OpenGymBoxContainer<float>> (action);
 
-  NS_LOG_UNCOND ("MyExecuteActions: " << action);
-  NS_LOG_UNCOND ("---" << box);
-  NS_LOG_UNCOND ("---" << discrete);
+  // NS_LOG_UNCOND ("MyExecuteActions: " << action);
+  auto data = flowToggles->GetData();
+  NS_ASSERT(data.size() == this->applications.size());
+  for (auto i = 0UL; i < data.size(); ++i)
+  {
+    NS_ASSERT(this->applications[i]->getFlow().flow_uid == flows[i].flow_uid);
+    if (data[i] > 0)
+    {
+      this->applications[i]->StartApplication();
+    }
+    else if (data[i] <= 0)
+    {
+      this->applications[i]->StopApplication();
+    }
+    else
+    {
+      std::cout << (data[i]) << std::endl;
+      NS_ASSERT(false); // We fucked up - constants comparison is failing
+    }
+  }
+
+  // NS_LOG_UNCOND ("MyExecuteActions: " << action);
+  // NS_LOG_UNCOND ("TOGGLES: " << flowToggles);
   return true;
 }
 

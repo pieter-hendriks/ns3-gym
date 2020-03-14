@@ -61,7 +61,6 @@ main (int argc, char *argv[])
   Ptr<OpenGymInterface> openGymInterface = CreateObject<OpenGymInterface> (openGymPort);
   Ptr<MyGymEnv> myGymEnv = CreateObject<MyGymEnv> (Seconds(envStepTime));
   myGymEnv->SetOpenGymInterface(openGymInterface);
-  NS_LOG_UNCOND("ufknwotopengym2");
   NS_LOG_UNCOND ("Simulation start");
   Simulator::Stop (Seconds (simulationTime));
   Simulator::Run ();

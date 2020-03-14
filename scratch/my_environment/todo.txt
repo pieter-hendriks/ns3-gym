@@ -1,19 +1,15 @@
-- Approximate action space somehow
-	==> Some maximal amount of flows + granularity of throughput
-		==> Or is flow scheduling as simple as choosing which goes first? I imagine some kind of multiplexing must be possible.
-	==> Deep Reinforcement Learning uses Deep Neural Network to represent (state, action) spaces 
-		--> https://ai.stackexchange.com/questions/11055/huge-action-space-size-in-reinforcement-learning
-		
-- Implementation of observation space
-	==> Determine what our agent can observe. 
-		--> Flow goals
-		--> Flow states
-		--> Network saturation, # collisions in past x time, avg saturation over past x time, ...
-				>>> Many options!!
+MODIFY ACTION SPACE TO BE THE SET OF NATURAL NUMBERS(HIGH)
+MODIFY NETWORK ENV TO USE WIRELESS NETWORK(HIGH)
 
-- Setup environment
-	==> Initially, simple point to point link of some speed between two devices < total flow throughput
-	==> By hand, determine optimal solution. Ensure RL finds it relatively quickly.
+ADD OTHER NODES TO NETWORK, SEND RANDOM (MEDIUM)
+ADD MOVEMENT OF NODES TO THE NETWORK(MEDIUM)
 
-- Implementation of reward function
-	- Check if need to add/subtract some stuff for partial completion
+ADD JAMMER (LOW)
+EXTEND INPUT FORMAT FOR VARIABLE FLOW DURATION (LOW):
+		"hold_period": "LOGNORMAL",
+		"distribution_parameters": {
+			"mu": 1.35,
+			"sigma": 0.4
+		},
+
+COMPARISONS WITH NO-RL WIFI AS WELL AS APPLYING THE WHOLE SETUP TO AN LTE ENVIRONMENT - INCLUDING COMPARE RL TO NO-RL

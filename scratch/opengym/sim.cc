@@ -170,7 +170,6 @@ main (int argc, char *argv[])
   openGym->SetGetExtraInfoCb( MakeCallback (&MyGetExtraInfo) );
   openGym->SetExecuteActionsCb( MakeCallback (&MyExecuteActions) );
   Simulator::Schedule (Seconds(0.0), &ScheduleNextStateRead, envStepTime, openGym);
-  NS_LOG_UNCOND("ufknwotopengym");
   NS_LOG_UNCOND ("Simulation start");
   Simulator::Stop (Seconds (simulationTime));
   Simulator::Run ();
