@@ -44,7 +44,7 @@ namespace ns3 {
  * This template can be used to give reference-counting powers
  * to a class. This template does not require this class to
  * have a virtual destructor or a specific (or any) parent class.
- * 
+ *
  * \note If you are moving to this template from the RefCountBase class,
  * you need to be careful to mark appropriately your destructor virtual
  * if needed. i.e., if your class has subclasses, _do_ mark your destructor
@@ -109,7 +109,7 @@ public:
   }
   /**
    * Decrement the reference count. This method should not be called
-   * by user code. SimpleRefCount instances are expected to be used in 
+   * by user code. SimpleRefCount instances are expected to be used in
    * conjunction with the Ptr template which would make calling Ref
    * unnecessary and dangerous.
    */
