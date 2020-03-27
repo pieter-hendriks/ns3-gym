@@ -103,6 +103,18 @@ struct Flow
 	{
 		return this->state.period / (1.0 * this->hold_period);
 	}
+
+
+	bool noLoss() 
+	{
+
+	};
+
+	bool smallLoss()
+	{
+
+	};
+
 };
 
 

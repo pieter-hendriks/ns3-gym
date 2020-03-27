@@ -72,17 +72,8 @@ void MyGymEnv::initializeFlows(Ipv4Address address)
 	}
 }
 
-// MyGymEnv::MyGymEnv () // = delete;
-// {
-//   NS_LOG_FUNCTION (this);
-//   m_interval = Seconds (0.1);
-//   Simulator::Schedule (Seconds (0.0), &MyGymEnv::ScheduleNextStateRead, this);
-
-// 	initializeFlows();
-// }
-
 MyGymEnv::MyGymEnv (Time stepTime, double linkspeed, MyNode* node, Ipv4Address address)
-: droppedPacketSize(0), sentPacketSize{0}, linkSpeed{linkspeed}, myNode{node}
+: droppedPacketSize(0), sentPacketSize{0}, linkSpeed{linkspeed}, myNode{node}, observationShape{std::vector<std::uint32_t>{static_cast<unsigned>(5),}}
 {
 	std::cout << "Setting linkspeed = " << linkSpeed << std::endl;
 	NS_LOG_FUNCTION (this);
@@ -150,9 +141,8 @@ Define observation space
 Ptr<OpenGymSpace>
 MyGymEnv::GetObservationSpace ()
 {
-	auto shape = std::vector<std::uint32_t>{static_cast<unsigned>(flows.size()) * 3,};
-
-	Ptr<OpenGymBoxSpace> flowBox = CreateObject<OpenGymBoxSpace>(0, std::numeric_limits<float>::infinity(), shape, TypeNameGet<float> ());
+	// Observation consists of: Active flow count, inactive flow count, amount of lossless flows (= normal reward), amount of flows with acceptable losses (= smaller or no reward), amount of flows with unacceptable loss (= minus points). 
+	Ptr<OpenGymBoxSpace> flowBox = CreateObject<OpenGymBoxSpace>(0, std::numeric_limits<int>::max(), this->observationShape, TypeNameGet<int> ());
 	return flowBox;
 }
 
@@ -194,19 +184,28 @@ Collect observations
 Ptr<OpenGymDataContainer>
 MyGymEnv::GetObservation ()
 {
-	auto shape = std::vector<std::uint32_t>{static_cast<unsigned>(flows.size()) * 3};
-	Ptr<OpenGymBoxContainer<float> > flowBox = CreateObject<OpenGymBoxContainer<float> >(shape);
-
+	Ptr<OpenGymBoxContainer<float> > flowBox = CreateObject<OpenGymBoxContainer<float> >(this->observationShape);
+	unsigned startedFlowCount, waitingFlowCount, noLossFlowCount, smallLossFlowCount, muchLossFlowCount;
 	for (auto& flow : flows)
 	{
-		std::cout << "flow fractions (" << flow.flow_uid << "): " << flow.getCurrentPeriodFraction() << ", " << flow.getCurrentSentFraction() << std::endl;
-		flowBox->AddValue(flow.getCurrentSentFraction());
-		flowBox->AddValue(flow.getCurrentPeriodFraction());
-		if (flow.isCompleted())
-			flowBox->AddValue(1);
+		if (flow.state.sent == 0)
+		{
+			++waitingFlowCount;
+			continue;
+		}
+		++startedFlowCount;
+		if (flow.noLoss())
+			++noLossFlowCount;
+		else if (flow.smallLoss())
+			++smallLossFlowCount;
 		else
-			flowBox->AddValue(0);
+			++muchLossFlowCount;
 	}
+	flowBox->AddValue(startedFlowCount);
+	flowBox->AddValue(waitingFlowCount);
+	flowBox->AddValue(noLossFlowCount);
+	flowBox->AddValue(smallLossFlowCount);
+	flowBox->AddValue(muchLossFlowCount);
 	return flowBox;
 }
 

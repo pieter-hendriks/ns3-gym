@@ -55,10 +55,7 @@ try:
 
 		ob_space = env.observation_space
 		ac_space = env.action_space
-		print(ac_space)
-		input("Pause point")
-		assert(len(env.action_space.shape) == 1)
-		nb_actions = env.action_space.shape[0]
+		nb_actions = 1 # env.action_space.shape[0]
 
 		stepIdx = 0
 		currIt = 0
@@ -71,10 +68,12 @@ try:
 		actor.add(Activation('relu'))
 		actor.add(Dense(16))
 		actor.add(Activation('relu'))
-		actor.add(Dense(1)) # Only one output
+		actor.add(Dense(nb_actions)) # Only one output
 		actor.add(Activation('linear'))
 		print(actor.summary())
-
+		print(env.observation_space)
+		print(env.observation_space.shape)
+		input("Pause point")
 		action_input = Input(shape=(nb_actions,), name='action_input')
 		observation_input = Input(shape=(1,) + env.observation_space.shape, name='observation_input')
 		flattened_observation = Flatten()(observation_input)

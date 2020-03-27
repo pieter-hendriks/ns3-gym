@@ -67,6 +67,8 @@ private:
 	MyNode* myNode;
 	std::vector<FlowGenerator*> applications;
 
+	std::vector<std::uint32_t> observationShape; 
+
 };
 
 }
