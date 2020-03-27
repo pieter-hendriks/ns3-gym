@@ -46,7 +46,7 @@ struct Flow
 									);
 	}
 	Flow(const json& input, unsigned index)
-	  : goal_type{input["goal_type"]},
+		: goal_type{input["goal_type"]},
 			point_value{input["point_value"]},
 			hold_period{input["hold_period"].get<double>() * 1000}, // express in ms
 			flow_uid{index},

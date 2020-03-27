@@ -2,7 +2,7 @@
 #include "ns3/simulator.h"
 #include "../include/json.hpp"
 
-auto handleFlowCreation(std::vector<Flow>& flows, const json& category)
+auto handleFlowCreation(std::vector<Flow>& flows, const json& category) -> void
 {
 	static auto flowCountSoFar = 0ULL;
 	auto count = category["flow_count"].get<unsigned>();

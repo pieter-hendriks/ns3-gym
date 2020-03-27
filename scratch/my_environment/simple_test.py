@@ -22,25 +22,25 @@ print("Action space: ", ac_space, ac_space.dtype)
 stepIdx = 0
 
 try:
-    obs = env.reset()
-    print("Step: ", stepIdx)
-    print("---obs: ", obs)
+		obs = env.reset()
+		print("Step: ", stepIdx)
+		print("---obs: ", obs)
 
-    while True:
-        stepIdx += 1
+		while True:
+				stepIdx += 1
 
-        action = env.action_space.sample()
-        print("---action: ", action)
-        obs, reward, done, info = env.step(action)
+				action = env.action_space.sample()
+				print("---action: ", action)
+				obs, reward, done, info = env.step(action)
 
-        print("Step: ", stepIdx)
-        print("---obs, reward, done, info: ", obs, reward, done, info)
+				print("Step: ", stepIdx)
+				print("---obs, reward, done, info: ", obs, reward, done, info)
 
-        if done:
-            break
+				if done:
+						break
 
 except KeyboardInterrupt:
-    print("Ctrl-C -> Exit")
+		print("Ctrl-C -> Exit")
 finally:
-    env.close()
-    print("Done")
+		env.close()
+		print("Done")

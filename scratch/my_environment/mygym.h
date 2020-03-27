@@ -36,36 +36,36 @@ namespace ns3 {
 class MyGymEnv : public OpenGymEnv
 {
 public:
-  friend class TypeId;
+	friend class TypeId;
 
-  MyGymEnv (Time stepTime, double speed, MyNode* node, Ipv4Address remoteAddress);
-  MyGymEnv (const MyGymEnv&) = delete;
-  MyGymEnv& operator=(const MyGymEnv&) = delete;
-  virtual ~MyGymEnv ();
-  static TypeId GetTypeId (void);
-  virtual void DoDispose ();
+	MyGymEnv (Time stepTime, double speed, MyNode* node, Ipv4Address remoteAddress);
+	MyGymEnv (const MyGymEnv&) = delete;
+	MyGymEnv& operator=(const MyGymEnv&) = delete;
+	virtual ~MyGymEnv ();
+	static TypeId GetTypeId (void);
+	virtual void DoDispose ();
 
-  Ptr<OpenGymSpace> GetActionSpace();
-  Ptr<OpenGymSpace> GetObservationSpace();
-  bool GetGameOver();
-  Ptr<OpenGymDataContainer> GetObservation();
-  float GetReward();
-  std::string GetExtraInfo();
-  bool ExecuteActions(Ptr<OpenGymDataContainer> action);
+	Ptr<OpenGymSpace> GetActionSpace();
+	Ptr<OpenGymSpace> GetObservationSpace();
+	bool GetGameOver();
+	Ptr<OpenGymDataContainer> GetObservation();
+	float GetReward();
+	std::string GetExtraInfo();
+	bool ExecuteActions(Ptr<OpenGymDataContainer> action);
 
-  void addSentPacket(std::uint64_t size, Flow& flow);
+	void addSentPacket(std::uint64_t size, Flow& flow);
 
 private:
-  MyGymEnv ();
-  void ScheduleNextStateRead();
-  void initializeFlows(Ipv4Address address);
-  Time m_interval;
-  std::vector<Flow> flows;
-  std::uint64_t droppedPacketSize;
-  std::uint64_t sentPacketSize;
-  double linkSpeed;
-  MyNode* myNode;
-  std::vector<FlowGenerator*> applications;
+	MyGymEnv ();
+	void ScheduleNextStateRead();
+	void initializeFlows(Ipv4Address address);
+	Time m_interval;
+	std::vector<Flow> flows;
+	std::uint64_t droppedPacketSize;
+	std::uint64_t sentPacketSize;
+	double linkSpeed;
+	MyNode* myNode;
+	std::vector<FlowGenerator*> applications;
 
 };
 
