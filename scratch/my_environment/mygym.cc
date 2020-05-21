@@ -246,31 +246,78 @@ Execute received actions
 bool
 MyGymEnv::ExecuteActions (Ptr<OpenGymDataContainer> action)
 {
-	Ptr<OpenGymBoxContainer<float>> flowToggles = DynamicCast<OpenGymBoxContainer<float>> (action);
-
-	// NS_LOG_UNCOND ("MyExecuteActions: " << action);
-	auto data = flowToggles->GetData();
-	NS_ASSERT(data.size() == this->applications.size());
-	for (auto i = 0UL; i < data.size(); ++i)
+	auto flowCount = DynamicCast<OpenGymDiscreteContainer>(action)->GetValue();
+	auto activatedCount = 0U;
+	for (auto app : this->applications)
 	{
-		NS_ASSERT(this->applications[i]->getFlow().flow_uid == flows[i].flow_uid);
-		if (data[i] > 0)
+		if (app->IsRunning())
+			activatedCount += 1;
+	}
+	if (activatedCount < flowCount)
+	{
+		for (auto app : this->applications)
 		{
-			this->applications[i]->StartApplication();
-		}
-		else if (data[i] <= 0)
-		{
-			this->applications[i]->StopApplication();
-		}
-		else
-		{
-			std::cout << (data[i]) << std::endl;
-			NS_ASSERT(false); // We fucked up - constants comparison is failing
+			if (app->getFlow().isCompleted() || app->IsRunning())
+				continue;
+			// Application with uncompleted flow
+			app->StartApplication();
+			activatedCount += 1;
+			if (activatedCount == flowCount)
+				break;
 		}
 	}
+	else if (activatedCount > flowCount)
+	{
+		for (auto app : this->applications)
+		{
+			if (!app->IsRunning())
+				continue;
+			app->StopApplication();
+			activatedCount -= 1;
+			if (activatedCount == flowCount) 
+				break;
+		}
+	}
+	return true;
+	
+	// for (auto &flow : flows)
+	// {
+	// 	if (!flow.isCompleted())
+	// 	{
+	// 		// TODO: Implement the actual activation of the flow - start sending its shit.
+	// 		// activate this flow
+	// 		activatedCount += 1;
+	// 	}
+		
+	// 	if (activatedCount == flowCount)
+	// 		break;
+	// }
 
-	// NS_LOG_UNCOND ("MyExecuteActions: " << action);
-	// NS_LOG_UNCOND ("TOGGLES: " << flowToggles);
+	// Ptr<OpenGymBoxContainer<float>> flowToggles = DynamicCast<OpenGymBoxContainer<float>> (action);
+
+	// // NS_LOG_UNCOND ("MyExecuteActions: " << action);
+	// auto data = flowToggles->GetData();
+	// NS_ASSERT(data.size() == this->applications.size());
+	// for (auto i = 0UL; i < data.size(); ++i)
+	// {
+	// 	NS_ASSERT(this->applications[i]->getFlow().flow_uid == flows[i].flow_uid);
+	// 	if (data[i] > 0)
+	// 	{
+	// 		this->applications[i]->StartApplication();
+	// 	}
+	// 	else if (data[i] <= 0)
+	// 	{
+	// 		this->applications[i]->StopApplication();
+	// 	}
+	// 	else
+	// 	{
+	// 		std::cout << (data[i]) << std::endl;
+	// 		NS_ASSERT(false); // We fucked up - constants comparison is failing
+	// 	}
+	// }
+
+	// // NS_LOG_UNCOND ("MyExecuteActions: " << action);
+	// // NS_LOG_UNCOND ("TOGGLES: " << flowToggles);
 	return true;
 }
 

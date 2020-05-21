@@ -29,92 +29,30 @@ struct FlowState
 	std::uint64_t sent;
 	std::uint64_t lastReset;
 	bool completed;
+	std::uint64_t lostPackets;
 };
 
 struct Flow
 {
 	Flow() = default;
-	Flow(const std::string& str, unsigned index)
-	{
-		auto input = json::parse(str);
-		goal_type = input["goal_type"];
-		point_value = input["point_value"];
-		hold_period = input["hold_period"].get<double>() * 1000; // express in ms
-		flow_uid = index;
-		requirements = Requirement(input["requirements"]["max_latency_s"].get<double>(), input["requirements"]["min_throughput_bps"].get<double>(),
-															input["requirements"]["max_jitter_s"].get<double>(), input["requirements"]["max_loss_percentage"].get<double>()
-									);
-	}
-	Flow(const json& input, unsigned index)
-		: goal_type{input["goal_type"]},
-			point_value{input["point_value"]},
-			hold_period{input["hold_period"].get<double>() * 1000}, // express in ms
-			flow_uid{index},
-			requirements{Requirement(
-				input["requirements"]["max_latency_s"].get<double>(), input["requirements"]["min_throughput_bps"].get<double>(),
-				input["requirements"]["max_jitter_s"].get<double>(), input["requirements"]["max_loss_percentage"].get<double>()
-			)}
-	{ }
-
-	Flow(std::string&& goaltype, double reward, unsigned id, double period, double latency, double throughput, double jitter, double loss)
-	: goal_type(std::move(goaltype)), point_value(reward), hold_period(period), flow_uid(id), requirements{latency, throughput, jitter, loss}
-	{
-
-	};
-
-	Flow(Flow&& o) : goal_type(std::move(o.goal_type)), point_value(std::move(o.point_value)), hold_period(std::move(o.hold_period)), flow_uid(std::move(o.flow_uid)), requirements(std::move(o.requirements)) { };
-	Flow(const Flow& o) : goal_type(o.goal_type), point_value(o.point_value), hold_period(o.hold_period), flow_uid(o.flow_uid), requirements(o.requirements) { };
-	virtual ~Flow()  {};
+	Flow(const std::string& str, unsigned index);
+	Flow(const json& input, unsigned index);
+	Flow(std::string&& goaltype, double reward, unsigned id, double period, double latency, double throughput, double jitter, double loss);
+	Flow(Flow&& o);
+	Flow(const Flow& o);
+	virtual ~Flow()  = default;
 	std::string goal_type;
 	double point_value;
 	double hold_period;
 	std::uint64_t flow_uid;
 	Requirement requirements;
-
 	FlowState state;
-	bool isCompleted()
-	{
-		this->state.completed = this->state.completed || (this->state.sent >= this->requirements.min_throughput_bps * this->hold_period * 1000
-																											&& this->state.period >= this->hold_period);
-		return this->state.completed;
-	}
-	void addSentPacket(std::uint64_t size)
-	{
-		if (!isCompleted())
-		{
-			std::uint64_t currentTimestampMs = ns3::Simulator::Now().GetMilliSeconds();
-			this->state.sent += size;
-			this->state.period = (currentTimestampMs - this->state.lastReset);
-			//std::cout << "DATA: " << state.sent << ", " << state.period << " --> After packet send, before reset" << std::endl;
-			if (this->state.sent / (this->state.period / 1000.0) < this->requirements.min_throughput_bps)
-			{
-				this->state.sent = 0;
-				this->state.period = 0;
-				this->state.lastReset = currentTimestampMs;
-			}
-			//std::cout << "DATA: " << state.sent << ", " << state.period << " --> After reset" << std::endl;
-		}
-	}
-	double getCurrentSentFraction()
-	{
-		return this->state.sent / (this->requirements.min_throughput_bps * this->hold_period / 1000.0);
-	}
-	double getCurrentPeriodFraction()
-	{
-		return this->state.period / (1.0 * this->hold_period);
-	}
 
-
-	bool noLoss() 
-	{
-
-	};
-
-	bool smallLoss()
-	{
-
-	};
-
+	bool isCompleted();
+	void addSentPacket(std::uint64_t size);
+	bool noLoss();
+	bool smallLoss();
+	bool muchLoss();
 };
 
 

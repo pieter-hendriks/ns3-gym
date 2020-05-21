@@ -3,9 +3,9 @@
 
 import argparse
 from ns3gym import ns3env
-from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, Flatten, Input, Concatenate
-from keras.optimizers import Adam
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, Activation, Flatten, Input, Concatenate
+from tensorflow.keras.optimizers import Adam
 from rl.agents import DDPGAgent
 from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
@@ -44,10 +44,6 @@ debug = False
 
 env = ns3env.Ns3Env(port=port, stepTime=stepTime, startSim=startSim, simSeed=seed, simArgs=simArgs, debug=debug)
 
-def rescaleFunction(x):
-		fn = lambda y: tf.mod(tf.abs(y), tf.constant(2, dtype=tf.float32))
-		return tf.map_fn(fn, x, dtype=tf.uint32)
-
 try:
 		# simpler:
 		#env = ns3env.Ns3Env()
@@ -70,10 +66,10 @@ try:
 		actor.add(Activation('relu'))
 		actor.add(Dense(nb_actions)) # Only one output
 		actor.add(Activation('linear'))
-		print(actor.summary())
-		print(env.observation_space)
-		print(env.observation_space.shape)
-		input("Pause point")
+		# print(actor.summary())
+		# print(env.observation_space)
+		# print(env.observation_space.shape)
+		# input("Pause point")
 		action_input = Input(shape=(nb_actions,), name='action_input')
 		observation_input = Input(shape=(1,) + env.observation_space.shape, name='observation_input')
 		flattened_observation = Flatten()(observation_input)
@@ -87,14 +83,16 @@ try:
 		x = Dense(1)(x)
 		x = Activation('linear')(x)
 		critic = Model(inputs=[action_input, observation_input], outputs=x)
-		print(critic.summary())
+		# print(critic.summary())
 
 		memory = SequentialMemory(limit=100000, window_length=1)
-		random_process = OrnsteinUhlenbeckProcess(size=ac_space.shape, theta=.15, mu=0., sigma=.3)
+		random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
 		agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
 											memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
 											random_process=random_process, gamma=.99, target_model_update=1e-3)
-		agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
+		optimizer = Adam(lr=.001, clipnorm=1.)
+		optimizer._name = 'Adam'
+		agent.compile(optimizer, metrics=['mae'])
 
 		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=2500)
 

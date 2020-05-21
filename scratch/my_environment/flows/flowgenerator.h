@@ -12,6 +12,7 @@
 #include "ns3/node-container.h"
 #include "flow.h"
 #include "../mygym.h"
+#include "../packet/packet.h"
 #include <assert.h>
 namespace ns3
 {
@@ -35,7 +36,7 @@ public:
 	};
 	void DoGenerate ()
 	{
-		ns3::Ptr<ns3::Packet> p = ns3::Create<ns3::Packet> (packetSize);
+		auto p(ns3::Create<MyPacket> (packetSize, this->flow));
 		myGym.addSentPacket(packetSize, flow);
 		m_socket->Send (p);
 
@@ -53,7 +54,6 @@ public:
 		}
 		return applications;
 	};
-
 	virtual void StartApplication ()
 	{
 		if (!isRunning)
@@ -62,6 +62,7 @@ public:
 			isRunning = true;
 		}
 	};
+
 	virtual void StopApplication ()
 	{
 		if (isRunning)
@@ -70,9 +71,14 @@ public:
 			isRunning = false;
 		}
 	};
+
 	Flow& getFlow() {
 		return flow;
-	}
+	};
+
+	bool IsRunning() {
+		return isRunning;
+	};
 private:
 	Flow& flow;
 	std::uint64_t packetSize;
