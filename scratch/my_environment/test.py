@@ -9,6 +9,8 @@ from tensorflow.keras.optimizers import Adam
 from rl.agents import DDPGAgent
 from rl.memory import SequentialMemory
 from rl.random import OrnsteinUhlenbeckProcess
+from rl.core import Processor
+import ctypes
 
 import tensorflow as tf
 
@@ -19,6 +21,21 @@ __email__ = "gawlowicz@tkn.tu-berlin.de"
 
 
 ENV_NAME = "MyGymEnv"
+
+class MyProcessor(Processor):
+	def __init__(self):
+		super().__init__()
+
+	def process_action(self, action):
+		# Agent outputs a 32-bit unsigned number as action,
+		# z3mq bridge allows up to 32-bit signed max values, so have to convert unsigned to signed.
+
+		action = ctypes.c_int32(action).value
+		if action < 0:
+			action = 0
+		return action
+
+
 
 parser = argparse.ArgumentParser(description='Start simulation script on/off')
 parser.add_argument('--start',
@@ -34,8 +51,8 @@ startSim = bool(args.start)
 iterationNum = int(args.iterations)
 
 port = 5555
-simTime = 5 # seconds
-stepTime = 0.5  # seconds
+simTime = 300 # seconds
+stepTime = 0.1  # seconds
 seed = 0
 simArgs = {"--simTime": simTime,
 					 "--stepTime": stepTime,
@@ -55,14 +72,13 @@ try:
 
 		stepIdx = 0
 		currIt = 0
-
 		actor = Sequential()
 		actor.add(Flatten(input_shape=(1,) + env.observation_space.shape))
-		actor.add(Dense(16))
+		actor.add(Dense(32))
 		actor.add(Activation('relu'))
-		actor.add(Dense(16))
+		actor.add(Dense(32))
 		actor.add(Activation('relu'))
-		actor.add(Dense(16))
+		actor.add(Dense(32))
 		actor.add(Activation('relu'))
 		actor.add(Dense(nb_actions)) # Only one output
 		actor.add(Activation('linear'))
@@ -76,7 +92,7 @@ try:
 		x = Concatenate()([action_input, flattened_observation])
 		x = Dense(32)(x)
 		x = Activation('relu')(x)
-		x = Dense(32)(x)
+		x = Dense(64)(x)
 		x = Activation('relu')(x)
 		x = Dense(32)(x)
 		x = Activation('relu')(x)
@@ -89,18 +105,18 @@ try:
 		random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
 		agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
 											memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
-											random_process=random_process, gamma=.99, target_model_update=1e-3)
+											random_process=None, gamma=.99, target_model_update=1e-3, processor = MyProcessor())
 		optimizer = Adam(lr=.001, clipnorm=1.)
 		optimizer._name = 'Adam'
 		agent.compile(optimizer, metrics=['mae'])
-
+		print("Fitting")
 		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=2500)
-
+		print("End fitting")
 		# After training is done, we save the final weights.
-		agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
+		# agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
 		# Finally, evaluate our algorithm for 5 episodes.
-		agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=200)
+		agent.test(env, nb_episodes=5, visualize=True, nb_max_episode_steps=200)
 
 except KeyboardInterrupt:
 		print("Ctrl-C -> Exit")

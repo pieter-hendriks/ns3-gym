@@ -10,6 +10,7 @@
 #include "ns3/simulator.h"
 #include "ns3/application-container.h"
 #include "ns3/node-container.h"
+#include "ns3/ptr.h"
 #include "flow.h"
 #include "../mygym.h"
 #include "../packet/packet.h"
@@ -36,9 +37,12 @@ public:
 	};
 	void DoGenerate ()
 	{
-		auto p(ns3::Create<MyPacket> (packetSize, this->flow));
-		myGym.addSentPacket(packetSize, flow);
-		m_socket->Send (p);
+		auto packet = std::make_unique<MyPacket>(this->packetSize, this->flow);
+		auto ptr = ns3::Ptr<MyPacket>(packet.release());
+		//ns3::Ptr<MyPacket> ptr = ns3::Create<MyPacket>(this->packetSize, this->flow);
+		//auto p(ns3::Create<MyPacket> (this->packetSize, this->flow));
+		myGym.addSentPacket(this->packetSize, this->flow);
+		m_socket->Send (ptr);
 
 		if (!flow.isCompleted())
 			m_next = ns3::Simulator::Schedule (ns3::Seconds (1 / (flow.requirements.min_throughput_bps / packetSize)), &FlowGenerator::DoGenerate, this);
@@ -79,6 +83,16 @@ public:
 	bool IsRunning() {
 		return isRunning;
 	};
+	bool IsFinished() {
+		return flow.isCompleted();
+	};
+	bool IsTerminated() {
+		return isTerminated;
+	}
+	void terminate() {
+		isTerminated = true;
+		this->StopApplication();
+	}
 private:
 	Flow& flow;
 	std::uint64_t packetSize;
@@ -86,6 +100,7 @@ private:
 	ns3::EventId m_next;
 	ns3::MyGymEnv& myGym;
 	bool isRunning;
+	bool isTerminated;
 
 };
 

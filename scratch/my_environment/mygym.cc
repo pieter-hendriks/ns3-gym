@@ -73,7 +73,7 @@ void MyGymEnv::initializeFlows(Ipv4Address address)
 }
 
 MyGymEnv::MyGymEnv (Time stepTime, double linkspeed, MyNode* node, Ipv4Address address)
-: droppedPacketSize(0), sentPacketSize{0}, linkSpeed{linkspeed}, myNode{node}, observationShape{std::vector<std::uint32_t>{static_cast<unsigned>(5),}}
+: droppedPacketSize(0), sentPacketSize{0}, linkSpeed{linkspeed}, myNode{node}, previousAction{0}, observationShape{std::vector<std::uint32_t>{static_cast<unsigned>(5),}}
 {
 	std::cout << "Setting linkspeed = " << linkSpeed << std::endl;
 	NS_LOG_FUNCTION (this);
@@ -141,7 +141,7 @@ Define observation space
 Ptr<OpenGymSpace>
 MyGymEnv::GetObservationSpace ()
 {
-	// Observation consists of: Active flow count, inactive flow count, amount of lossless flows (= normal reward), amount of flows with acceptable losses (= smaller or no reward), amount of flows with unacceptable loss (= minus points). 
+	// Observation consists of: Active flow count, inactive flow count, amount of lossless flows (= normal reward), amount of flows with acceptable losses (= smaller or no reward), amount of flows with unacceptable loss (= minus points).
 	Ptr<OpenGymBoxSpace> flowBox = CreateObject<OpenGymBoxSpace>(0, std::numeric_limits<int>::max(), this->observationShape, TypeNameGet<int> ());
 	return flowBox;
 }
@@ -154,7 +154,7 @@ MyGymEnv::GetActionSpace ()
 {
 	// Allow as many flows as it wants; up to 2^31 - 1, which we'll assume is bigger than will ever be relevant.
 	// Signed::max because OpenGymDiscreteSpace uses a signed int type
-	Ptr<OpenGymDiscreteSpace> flowToggleSpace = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<int>::max());
+	Ptr<OpenGymDiscreteSpace> flowToggleSpace = CreateObject<OpenGymDiscreteSpace>(3 /*std::numeric_limits<unsigned>::max()*/);
 	return flowToggleSpace;
 }
 
@@ -166,15 +166,15 @@ MyGymEnv::GetGameOver ()
 {
 	if (std::all_of(flows.begin(), flows.end(), [](auto& flow) -> bool { return flow.isCompleted(); }))
 	{
-		NS_LOG_UNCOND("Game over check: True - successfully completed all flows.");
+		//NS_LOG_UNCOND("Game over check: True - successfully completed all flows.");
 		return true;
 	}
-	if (this->droppedPacketSize > 100000000)
-	{
-		NS_LOG_UNCOND("Game over check: True - too much packet loss.");
-		return true; // Stop simming if dropped > 100Mb
-	}
-	NS_LOG_UNCOND("Game over check: False");
+	// if (this->droppedPacketSize > 100000000)
+	// {
+	// 	NS_LOG_UNCOND("Game over check: True - too much packet loss.");
+	// 	return true; // Stop simming if dropped > 100Mb
+	// }
+	//NS_LOG_UNCOND("Game over check: False");
 	return false;
 }
 
@@ -186,21 +186,23 @@ MyGymEnv::GetObservation ()
 {
 	Ptr<OpenGymBoxContainer<float> > flowBox = CreateObject<OpenGymBoxContainer<float> >(this->observationShape);
 	unsigned startedFlowCount, waitingFlowCount, noLossFlowCount, smallLossFlowCount, muchLossFlowCount;
-	for (auto& flow : flows)
+	for (auto app : this->applications)
 	{
-		if (flow.state.sent == 0)
+		if (app->IsRunning())
+			startedFlowCount += 1;
+		else if (!app->IsFinished() && !app->IsTerminated())
+			waitingFlowCount += 1;
+		if (app->IsRunning())
 		{
-			++waitingFlowCount;
-			continue;
+			if (app->getFlow().noLoss())
+				noLossFlowCount += 1;
+			else if (app->getFlow().smallLoss())
+				smallLossFlowCount += 1;
+			else if (app->getFlow().muchLoss())
+				muchLossFlowCount += 1;
 		}
-		++startedFlowCount;
-		if (flow.noLoss())
-			++noLossFlowCount;
-		else if (flow.smallLoss())
-			++smallLossFlowCount;
-		else
-			++muchLossFlowCount;
 	}
+
 	flowBox->AddValue(startedFlowCount);
 	flowBox->AddValue(waitingFlowCount);
 	flowBox->AddValue(noLossFlowCount);
@@ -215,6 +217,8 @@ Define reward function
 float
 MyGymEnv::GetReward ()
 {
+	static auto previousSentSize = 0ULL;
+	static auto previousDroppedSize = 0ULL;
 	float reward = 0.0;
 	for (auto& flow : flows)
 	{
@@ -224,9 +228,13 @@ MyGymEnv::GetReward ()
 		}
 	}
 
-	reward -= this->droppedPacketSize / 1000000.0;
-	reward += this->sentPacketSize / 100000000.0;
-
+	reward -= (this->droppedPacketSize - previousDroppedSize) / 10.0;
+	reward += (this->sentPacketSize - previousSentSize) / 100.0;
+	previousDroppedSize = this->droppedPacketSize;
+	previousSentSize = this->sentPacketSize;
+	//std::cout << "DROPPED: " << this->droppedPacketSize << std::endl;
+	//std::cout << "SENT: " << this->sentPacketSize << std::endl;
+	//std::cout << "Total reward: " << reward << std::endl;
 	return reward;
 }
 
@@ -247,6 +255,9 @@ bool
 MyGymEnv::ExecuteActions (Ptr<OpenGymDataContainer> action)
 {
 	auto flowCount = DynamicCast<OpenGymDiscreteContainer>(action)->GetValue();
+	std::stringstream ss;
+	ss << "Enabling " << flowCount << " flows.";
+	NS_LOG_UNCOND(ss.str());
 	auto activatedCount = 0U;
 	for (auto app : this->applications)
 	{
@@ -257,7 +268,7 @@ MyGymEnv::ExecuteActions (Ptr<OpenGymDataContainer> action)
 	{
 		for (auto app : this->applications)
 		{
-			if (app->getFlow().isCompleted() || app->IsRunning())
+			if (app->IsFinished() || app->IsRunning())
 				continue;
 			// Application with uncompleted flow
 			app->StartApplication();
@@ -272,14 +283,14 @@ MyGymEnv::ExecuteActions (Ptr<OpenGymDataContainer> action)
 		{
 			if (!app->IsRunning())
 				continue;
-			app->StopApplication();
+			app->terminate();
 			activatedCount -= 1;
-			if (activatedCount == flowCount) 
+			if (activatedCount == flowCount)
 				break;
 		}
 	}
 	return true;
-	
+
 	// for (auto &flow : flows)
 	// {
 	// 	if (!flow.isCompleted())
@@ -288,7 +299,7 @@ MyGymEnv::ExecuteActions (Ptr<OpenGymDataContainer> action)
 	// 		// activate this flow
 	// 		activatedCount += 1;
 	// 	}
-		
+
 	// 	if (activatedCount == flowCount)
 	// 		break;
 	// }

@@ -66,8 +66,8 @@ private:
 	double linkSpeed;
 	MyNode* myNode;
 	std::vector<FlowGenerator*> applications;
-
-	std::vector<std::uint32_t> observationShape; 
+	uint64_t previousAction;
+	std::vector<std::uint32_t> observationShape;
 
 };
 
