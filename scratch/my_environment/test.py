@@ -27,13 +27,18 @@ class MyProcessor(Processor):
 		super().__init__()
 
 	def process_action(self, action):
-		# Agent outputs a 32-bit unsigned number as action,
-		# z3mq bridge allows up to 32-bit signed max values, so have to convert unsigned to signed.
-
-		action = ctypes.c_int32(action).value
-		if action < 0:
-			action = 0
+		# In order to limit action space somewhat, we're limiting the action space to a 16-bit number. I'm not sure if there's a good way to do that in C++ code.
+		# So, we're explicitly doing that here.
+		# Essentially, 16 leftmost bits are set to 0. This aliases the actions to others, and shouldn't impede the learning process.
+		action = ctypes.c_uint16(action).value
+		# action = ctypes.c_int32(action).value
 		return action
+	
+	def process_observation(self, obs):
+		obs.append(25)
+		return obs
+
+
 
 
 
@@ -72,8 +77,19 @@ try:
 
 		stepIdx = 0
 		currIt = 0
+
+
+		# We get a single dimensional observation -
+		# But we add a single item to it (constant term) to avoid stuck-at-zero problem.
+		obs_shape = list(env.observation_space.shape)
+		obs_shape[0] += 1
+		obs_shape = tuple(obs_shape)
+		assert(len(obs_shape) == 1) # If this isn't true anymore, logic needs to be changed.
+
+
+
 		actor = Sequential()
-		actor.add(Flatten(input_shape=(1,) + env.observation_space.shape))
+		actor.add(Flatten(input_shape=(1,) + obs_shape))
 		actor.add(Dense(32))
 		actor.add(Activation('relu'))
 		actor.add(Dense(32))
@@ -86,8 +102,9 @@ try:
 		# print(env.observation_space)
 		# print(env.observation_space.shape)
 		# input("Pause point")
+
+		observation_input = Input(shape=(1,) + obs_shape, name='observation_input')
 		action_input = Input(shape=(nb_actions,), name='action_input')
-		observation_input = Input(shape=(1,) + env.observation_space.shape, name='observation_input')
 		flattened_observation = Flatten()(observation_input)
 		x = Concatenate()([action_input, flattened_observation])
 		x = Dense(32)(x)
@@ -105,18 +122,18 @@ try:
 		random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
 		agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
 											memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
-											random_process=None, gamma=.99, target_model_update=1e-3, processor = MyProcessor())
+											random_process=random_process, gamma=.99, target_model_update=1e-3, processor = MyProcessor())
 		optimizer = Adam(lr=.001, clipnorm=1.)
 		optimizer._name = 'Adam'
 		agent.compile(optimizer, metrics=['mae'])
-		print("Fitting")
+
 		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=2500)
-		print("End fitting")
+
 		# After training is done, we save the final weights.
 		# agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
 		# Finally, evaluate our algorithm for 5 episodes.
-		agent.test(env, nb_episodes=5, visualize=True, nb_max_episode_steps=200)
+		agent.test(env, nb_episodes=5, visualize=True, nb_max_episode_steps=1500)
 
 except KeyboardInterrupt:
 		print("Ctrl-C -> Exit")

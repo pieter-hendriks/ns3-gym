@@ -19,16 +19,17 @@
  *
  */
 
+#include "simulation/simulationenvironment.h"
+
+
 #include "ns3/core-module.h"
 #include "ns3/opengym-module.h"
-#include "node/mynode.h"
 
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
-
-#include "mygym.h"
+#include "ns3/timer.h"
 
 using namespace ns3;
 
@@ -64,38 +65,17 @@ main (int argc, char *argv[])
 	RngSeedManager::SetSeed (1);
 	RngSeedManager::SetRun (simSeed);
 
-	NodeContainer nodes;
-	Ptr<MyNode> myNode = CreateObject<MyNode>();
-	nodes.Add(myNode);
-	nodes.Add(CreateObject<Node>());
-	//nodes.Create (2);
-
-	PointToPointHelper pointToPoint;
-	pointToPoint.SetDeviceAttribute ("DataRate", StringValue ("5Mbps"));
-	pointToPoint.SetChannelAttribute ("Delay", StringValue ("2ms"));
-
-	NetDeviceContainer devices;
-	devices = pointToPoint.Install (nodes);
-
-	InternetStackHelper stack;
-	stack.Install (nodes);
-
-	Ipv4AddressHelper address;
-	address.SetBase ("10.1.1.0", "255.255.255.0");
-
-	Ipv4InterfaceContainer interfaces = address.Assign (devices);
-
-	std::cout << interfaces.GetAddress(0) << std::endl;
-	std::cout << interfaces.GetAddress(1) << std::endl;
-
 
 	// OpenGym Env
 	Ptr<OpenGymInterface> openGymInterface = CreateObject<OpenGymInterface> (openGymPort);
-	Ptr<MyGymEnv> myGymEnv = CreateObject<MyGymEnv> (Seconds(envStepTime), 5000000.0, ns3::PeekPointer<MyNode>(myNode), interfaces.GetAddress(1));
-	std::cout << "Created gym address: " << &(*myGymEnv) << std::endl;
-	myGymEnv->SetOpenGymInterface(openGymInterface);
+	Ptr<SimulationEnvironment> myGym = CreateObject<SimulationEnvironment>(static_cast<unsigned>(envStepTime * 1000000 + 0.5));
+
+	myGym->SetOpenGymInterface(openGymInterface);
 	NS_LOG_UNCOND ("Simulation start");
-	// Simulator::Stop (Seconds (simulationTime));
+	//Simulator::Stop (Seconds (simulationTime));
+	//std::function<void(MyGymEnv&, MyNode&, MyReceiverNode&)> check = &checkFunction;
+	Time::SetResolution(ns3::Time::Unit::US);
+	//Simulator::ScheduleNow(check);
 	Simulator::Run ();
 	NS_LOG_UNCOND ("Simulation stop");
 
@@ -103,3 +83,5 @@ main (int argc, char *argv[])
 	Simulator::Destroy ();
 
 }
+
+

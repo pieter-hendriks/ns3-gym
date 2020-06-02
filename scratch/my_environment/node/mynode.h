@@ -1,18 +1,28 @@
 #pragma once
-#ifndef INC_MYENV_MYNODE_H_
-#define INC_MYENV_MYNODE_H_
+#ifndef INC_MY_NODE_H_
+#define INC_MY_NODE_H_
+#include "sendapplication.h"
 
-#include "ns3/core-module.h"
-#include "ns3/opengym-module.h"
 #include "ns3/node.h"
+#include "ns3/ipv4-address.h"
+#include "ns3/ipv4.h"
+
 class MyNode : public ns3::Node
 {
-	public:
-	MyNode () { };
-	MyNode (ns3::Node&& base) : ns3::Node(std::move(base)) { };
+public:
+	MyNode() = default;
+	virtual ~MyNode() = default;
+	// void addApplication(SendApplication&& app)
+	// {
+	// 	applications.emplace_back(std::move(app));
+	// }
 
-	virtual ~MyNode() {};
-
+	ns3::Ipv4Address getIP() const
+	{
+		return this->GetObject<ns3::Ipv4>()->GetAddress(0,0).GetLocal();
+	}
+private:
+	// std::vector<SendApplication> applications;
 };
 
 #endif

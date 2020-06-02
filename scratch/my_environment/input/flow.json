@@ -1,14 +1,12 @@
-[
-	{
-		"goal_type": "VOIP",
-		"point_value": 1,
-		"hold_period": 10,
-		"flow_count": 5000,
-		"requirements": {
-			"max_latency_s": 0.09,
-			"min_throughput_bps": 65536,
-			"max_jitter_s": 0.01,
-			"max_loss_percentage": 0.0001
-		}
+{
+	"goal_type": "VOIP",
+	"point_value": 1,
+	"hold_period": 3,
+	"flow_count": 5000,
+	"requirements": {
+		"max_latency_s": 0.09,
+		"min_throughput_bps": 65536,
+		"max_jitter_s": 0.01,
+		"max_loss_percentage": 0.0001
 	}
-]
+}
