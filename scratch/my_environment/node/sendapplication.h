@@ -14,11 +14,13 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/inet-socket-address.h"
 
+#include <sstream>
+
 class SendApplication : public ns3::Application
 {
 public:
 	SendApplication() { throw std::runtime_error("Default SendApplication called"); /* Shouldn't happen - only used in resize call when active > action */ };
-	SendApplication(uint32_t dur, uint32_t sz, double tp, double thr, MySocket&& sndr, MySocket&& dst) : duration(dur), size(sz), bps(tp), threshold(thr), sender(std::move(sndr)), destination(std::move(dst)) { };
+	SendApplication(uint32_t dur, uint32_t sz, double tp, double thr, MySendSocket&& sndr, MyRecvSocket&& dst) : duration(dur), size(sz), bps(tp), threshold(thr), sender(std::move(sndr)), destination(std::move(dst)), running(false) { };
 	SendApplication(SendApplication&& o) : size(o.size), bps(o.bps), sender(std::move(o.sender)), destination(std::move(o.destination)), running(o.running), nextEvent(std::move(o.nextEvent)) { };
 	virtual ~SendApplication()
 	{
@@ -64,9 +66,10 @@ public:
 		nextEvent = ns3::Simulator::Schedule(ns3::MicroSeconds(time), &SendApplication::send, this);
 	}
 
-
 	virtual void StartApplication()
 	{
+		if (running)
+			throw std::runtime_error("Wow wtf r u doin"); 
 		running = true;
 		this->send();
 	};
@@ -76,11 +79,10 @@ public:
 		ns3::Simulator::Cancel(nextEvent);
 	};
 
-
 	bool isRunning() const { return running; };
 	bool isComplete() const
 	{
-		if (destination.getDest() != nullptr)
+		if (destination.get() != nullptr)
 		{
 			// Duration should be expressed in Simulator timestamp unit, US in our case.
 			if (ns3::Simulator::Now().GetMicroSeconds() - this->getFirstRecvPacketTime() - (this->getFirstSentPacketTime() - this->getFirstRecvPacketTime()) > this->duration)
@@ -88,7 +90,7 @@ public:
 				return true;
 			}
 		}
-		else if (sender.getSender() != nullptr)
+		else if (sender.get() != nullptr)
 		{
 			if (ns3::Simulator::Now().GetMicroSeconds() - this->getFirstSentPacketTime() > 2 * this->duration)
 				return true; // Stream had zero packets arriving in twice its duration, that's definitely gonna be a no for me dawg
@@ -114,11 +116,11 @@ public:
 	}
 
 	double getThreshold() const { return threshold; };
-	uint64_t getSentCount() const { return sender.getSentCount(); };
-	uint64_t getRecvCount() const { return destination.getRecvCount(); };
+	uint64_t getSentCount() const { return sender.getCount(); };
+	uint64_t getRecvCount() const { return destination.getCount(); };
 
-	uint64_t getRecvSize() const { return destination.getRecvSize(); };
-	uint64_t getSentSize() const { return sender.getSentSize(); };
+	uint64_t getRecvSize() const { return destination.getSize(); };
+	uint64_t getSentSize() const { return sender.getSize(); };
 
 	uint64_t getFirstSentPacketTime() const { return sender.startTime(); };
 	uint64_t getFirstRecvPacketTime() const { return destination.startTime(); };
@@ -128,8 +130,8 @@ private:
 	uint32_t size;
 	double bps;
 	double threshold;
-  MySocket sender;
-	MySocket destination;
+  MySendSocket sender;
+	MyRecvSocket destination;
 	bool running;
 	ns3::EventId nextEvent;
 

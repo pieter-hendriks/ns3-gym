@@ -45,10 +45,6 @@ std::tuple<unsigned, unsigned, unsigned> checkApplicationPerformance(const std::
 	}
 	return {well, okay, bad};
 }
-void socketReceive(ns3::Ptr<ns3::Socket> sockPtr)
-{
-	((MySocket*)(ns3::PeekPointer(sockPtr)))->receive(((MySocket*)(ns3::PeekPointer(sockPtr)))->get()->Recv(std::numeric_limits<uint32_t>::max(), 0));
-}
 
 FlowSpec readFlowSpec(const std::string& file)
 {

@@ -74,7 +74,7 @@ main (int argc, char *argv[])
 	NS_LOG_UNCOND ("Simulation start");
 	//Simulator::Stop (Seconds (simulationTime));
 	//std::function<void(MyGymEnv&, MyNode&, MyReceiverNode&)> check = &checkFunction;
-	Time::SetResolution(ns3::Time::Unit::US);
+	Time::SetResolution(ns3::Time::Unit::MS);
 	//Simulator::ScheduleNow(check);
 	Simulator::Run ();
 	NS_LOG_UNCOND ("Simulation stop");

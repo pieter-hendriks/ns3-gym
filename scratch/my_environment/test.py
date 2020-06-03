@@ -30,13 +30,16 @@ class MyProcessor(Processor):
 		# In order to limit action space somewhat, we're limiting the action space to a 16-bit number. I'm not sure if there's a good way to do that in C++ code.
 		# So, we're explicitly doing that here.
 		# Essentially, 16 leftmost bits are set to 0. This aliases the actions to others, and shouldn't impede the learning process.
-		action = ctypes.c_uint16(action).value
+		# action = ctypes.c_uint16(action).value
+		action = abs(int(action)) % 1024
 		# action = ctypes.c_int32(action).value
 		return action
 	
 	def process_observation(self, obs):
-		obs.append(25)
-		return obs
+		if obs:
+			obs.append(25)
+			return obs
+		return [0, 0, 0, 0, 25]
 
 
 

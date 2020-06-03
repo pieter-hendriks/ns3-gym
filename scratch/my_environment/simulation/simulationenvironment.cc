@@ -67,7 +67,10 @@ void SimulationEnvironment::StateRead()
 			break;
 	}*/
 	Notify();
+	auto previous = this->applications.size();
 	std::remove_if(this->applications.begin(), this->applications.end(), [](const auto& app) -> bool { return app.isComplete(); });
+	if (this->applications.size() != previous) 
+		std::cout << "Removed some in completed flows check." << std::endl;
 }
 
 
@@ -82,25 +85,29 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
 }
 bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 {
-	//std::cout << "Executing actions!" <<std::endl;
+
+
 	// Open/close flows as required to match number.
 	// When closing, we close those most recently opened as they're furthest away from the reward.
 	auto currentlyOpen = this->applications.size();
 	auto actionCount = static_cast<unsigned>(DynamicCast<OpenGymDiscreteContainer>(action)->GetValue());
-	std::cout << "Action = " << actionCount << std::endl;
+	std::cout << "Executing actions (actionCount = " << actionCount << ")!" <<std::endl;
 	if (this->applications.capacity() < actionCount)
 		this->applications.reserve(actionCount);
 	if (actionCount < currentlyOpen)
 	{
+		std::cout << "Removing action" << std::endl;
 		this->applications.resize(actionCount);
+		std::cout << "Removed action!" << std::endl;
 	}
 	if (actionCount > currentlyOpen)
 	{
+		std::cout << "Activating " << actionCount - currentlyOpen << " extra flows." << std::endl;
 		for (unsigned i = currentlyOpen; i < actionCount; ++i)
 		{
 			// We should create a socket pair for each application, install it on the nodes.
-			MySocket srcSock(this->sender->GetObject<UdpSocketFactory>()->CreateSocket());
-			MySocket dstSock(this->receiver->GetObject<UdpSocketFactory>()->CreateSocket());
+			MySendSocket srcSock(this->sender->GetObject<UdpSocketFactory>()->CreateSocket());
+			MyRecvSocket dstSock(this->receiver->GetObject<UdpSocketFactory>()->CreateSocket());
 
 			// Get flow id, use as port, increment for future uses.
 			auto port = this->nextFlowId;
@@ -116,9 +123,14 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 			// Construct the new sending application in-place.
 			applications.emplace_back(this->flowSpec.period, PACKET_SIZE, this->flowSpec.minThroughput_bps, 0/*this->flowSpec.max_loss*/, std::move(srcSock), std::move(dstSock));
 			applications[applications.size()-1].StartApplication();
+			if ((i - currentlyOpen) % 1000 == 0)
+			{
+				std::cout << i - currentlyOpen << " are done!" << std::endl;
+			}
 		}
+		std::cout << actionCount - currentlyOpen << " extra flows have been activated." << std::endl;
 	}
-
+	std::cout << "Actions executed!" << std::endl;
 	return true;
 }
 
@@ -169,11 +181,12 @@ float SimulationEnvironment::GetReward()
 		}
 		else
 		{
-			if (isPerformingWell(app))
+			/*if (isPerformingWell(app))
 			{
 				reward += 1;
 			}
-			else if (isPerformingBad(app))
+			else */
+			if (isPerformingBad(app))
 			{
 				reward -= 3;
 			}
