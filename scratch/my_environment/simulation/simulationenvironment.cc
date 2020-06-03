@@ -45,12 +45,12 @@ SimulationEnvironment::SimulationEnvironment(unsigned inter) : interval(inter), 
 	// Create the actual environment, a la sim.cc
 	// We'd prefer to have this here rather than in a different file so we have the entire setup wrapped in this environment.
 	// Later on, that'll let us define new functions to setup different environment configurations.
-	
+
 	this->setupDefaultEnvironment();
 
-	// Read the flow spec from input file - defines bandwidth requirements and such. 
+	// Read the flow spec from input file - defines bandwidth requirements and such.
 	// These are the values used to gauge how well the agent is doing (reward function etc).
-	this->readFlowSpec(); 
+	this->readFlowSpec();
 	// Currently behaving as if an infinite amount of flows are available, there should be an optional limiting parameter.
 	// Reward function needs to be updated to support that, though.
 
@@ -99,8 +99,8 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 		for (unsigned i = currentlyOpen; i < actionCount; ++i)
 		{
 			// We should create a socket pair for each application, install it on the nodes.
-			MySocket srcSock;
-			MySocket dstSock;
+			MySocket srcSock(this->sender->GetObject<UdpSocketFactory>()->CreateSocket());
+			MySocket dstSock(this->receiver->GetObject<UdpSocketFactory>()->CreateSocket());
 
 			// Get flow id, use as port, increment for future uses.
 			auto port = this->nextFlowId;
@@ -109,20 +109,10 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 			auto srcIp = this->sender->getIP();
 			auto dstIp = this->receiver->getIP();
 
-			srcSock.Bind(InetSocketAddress(srcIp, port));
-			dstSock.Bind(InetSocketAddress(dstIp, port));
+			srcSock.get()->Bind(InetSocketAddress(srcIp, port));
+			dstSock.get()->Bind(InetSocketAddress(dstIp, port));
 
-			srcSock.SetNode(sender);
-			dstSock.SetNode(receiver);
-
-
-			/*srcSock.SetUdp();
-			dstSock.SetUdp(this->receiver->GetObject<UdpSocketFactory>());*/
-			
-			*static_cast<UdpSocket*>(&srcSock) = *((ns3::UdpSocket*)(PeekPointer(this->sender->GetObject<UdpSocketFactory>()->CreateSocket())));
-			*static_cast<UdpSocket*>(&dstSock) = *((ns3::UdpSocket*)(PeekPointer(this->receiver->GetObject<UdpSocketFactory>()->CreateSocket())));
-
-
+			srcSock.get()->Connect(InetSocketAddress(dstIp, port));
 			// Construct the new sending application in-place.
 			applications.emplace_back(this->flowSpec.period, PACKET_SIZE, this->flowSpec.minThroughput_bps, 0/*this->flowSpec.max_loss*/, std::move(srcSock), std::move(dstSock));
 			applications[applications.size()-1].StartApplication();
@@ -135,7 +125,7 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 {
 	//std::cout << "GetObservationSpace" << std::endl;
-	// Active flow count, amount performing well, amount performing acceptably, amount performing badly. 
+	// Active flow count, amount performing well, amount performing acceptably, amount performing badly.
 	static Ptr<OpenGymBoxSpace> space = CreateObject<OpenGymBoxSpace>(0, std::numeric_limits<unsigned>::max(), std::vector<unsigned>{4U,}, TypeNameGet<unsigned>());
 	return space;
 }
@@ -151,7 +141,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	observation->AddValue(std::get<0>(statuses));
 	observation->AddValue(std::get<1>(statuses));
 	observation->AddValue(std::get<2>(statuses));
-	
+
 
 	return observation;
 }
@@ -159,7 +149,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 bool SimulationEnvironment::GetGameOver()
 {
 	//std::cout << "GGO!" <<std::endl;
-	// Some time frame, probably. Maybe just always false is okay for now. 
+	// Some time frame, probably. Maybe just always false is okay for now.
 	// --> We simply support infinite streams for now, python agent controls episode length.
 	return false;
 }

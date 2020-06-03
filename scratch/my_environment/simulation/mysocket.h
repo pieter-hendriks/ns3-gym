@@ -29,8 +29,12 @@ void socketReceive(ns3::Ptr<ns3::Socket> sockPtr);
 class MySocket
 {
 public:
-	MySocket() : dataReceived(nullptr), dataSent(nullptr) {
-		pimpl->SetRecvCallback(ns3::MakeCallback(&socketReceive)); //   ns3::Callback< void, ns3::Ptr< ns3::Socket > > (&socketReceive));
+	MySocket() :dataReceived(nullptr), dataSent(nullptr), pimpl(nullptr) { throw std::runtime_error("Shouldn't happen. Some construction error."); };
+	MySocket(ns3::Ptr<ns3::Socket> implptr) : dataReceived(nullptr), dataSent(nullptr), pimpl(implptr) {
+		pimpl->SetRecvCallback(ns3::MakeCallback([this](auto sock) -> void {
+			this->receive(sock->Recv(std::numeric_limits<unsigned>::max(), 0));
+		})); //   ns3::Callback< void, ns3::Ptr< ns3::Socket > > (&socketReceive));
+		// callback originally &socketReceive, changed for lambda to allow capturing this. Makes for cleaner implementation
 	};
 
 	MySocket(const MySocket& o) {
@@ -86,11 +90,11 @@ public:
 		dataReceived->count += 1;
 	};
 
-	ns3::Ptr<UdpSocket> get() {
+	ns3::Ptr<ns3::Socket> get() {
 		return pimpl;
 	};
 
-	#define my_assert(b) if (b) throw std::runtime_error("Assertion failed");
+	#define my_assert(b) if (!(b)) throw std::runtime_error("Assertion failed");
 
 	uint64_t getSentCount() const { my_assert(this->dataSent != nullptr);  return dataSent->count; };
 	uint64_t getRecvCount() const { my_assert(this->dataReceived != nullptr);  return dataReceived->count; };
@@ -99,7 +103,7 @@ public:
 	uint64_t getRecvSize() const { my_assert(this->dataReceived != nullptr);  return dataReceived->size; };
 
 	uint64_t startTime() const
-	{ 
+	{
 		// This would be so much easier if I just split this into sendsocket and recvsocket.
 		// #TODO
 		my_assert(this->dataSent != nullptr || this->dataReceived != nullptr);
@@ -111,12 +115,17 @@ public:
 		}
 		return dataReceived->creationTime;
 	}
-
+	const Data* getDest() const {
+		return dataReceived.get();
+	}
+	const Data* getSender() const {
+		return dataSent.get();
+	}
 	#undef my_assert
 private:
 	std::unique_ptr<Data> dataReceived;
 	std::unique_ptr<Data> dataSent;
-	ns3::Ptr<UdpSocket> pimpl;
+	ns3::Ptr<ns3::Socket> pimpl;
 
 };
 

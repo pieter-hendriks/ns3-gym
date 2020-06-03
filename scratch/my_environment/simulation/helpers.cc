@@ -12,7 +12,7 @@ bool isPerformingWell (const SendApplication& app)
 	// 1 packet tolerance for in-transit things. For now, we assume latency higher than that = bad.
 	// This isn't scalable/true, necessarily, but okay for now.
 
-	// We can probably do the math for this - determine how much this offset is supposed to be. 
+	// We can probably do the math for this - determine how much this offset is supposed to be.
 	// Should probably pass reference to simulationenvironment as well in that case, simpler than each parameter separately.
 	if (app.getRecvCount() < app.getSentCount() - 1)
 		return false;
@@ -47,7 +47,7 @@ std::tuple<unsigned, unsigned, unsigned> checkApplicationPerformance(const std::
 }
 void socketReceive(ns3::Ptr<ns3::Socket> sockPtr)
 {
-	((MySocket*)(ns3::PeekPointer(sockPtr)))->receive(((MySocket*)(ns3::PeekPointer(sockPtr)))->Recv(std::numeric_limits<uint32_t>::max(), 0));
+	((MySocket*)(ns3::PeekPointer(sockPtr)))->receive(((MySocket*)(ns3::PeekPointer(sockPtr)))->get()->Recv(std::numeric_limits<uint32_t>::max(), 0));
 }
 
 FlowSpec readFlowSpec(const std::string& file)

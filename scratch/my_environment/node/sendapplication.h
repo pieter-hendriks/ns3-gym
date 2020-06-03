@@ -54,7 +54,7 @@ public:
 	{
 		ns3::Ptr<ns3::Packet> packet = ns3::Create<ns3::Packet>(size);
 		ns3::Address addr;
-		destination.GetSockName(addr);
+		destination.get()->GetSockName(addr);
 		sender.send(packet, 0, ns3::InetSocketAddress::ConvertFrom(addr));
 		// Time spent for a single packet = bits / bits per second = second
 		// Multiply by 10^6 to get microseconds.
@@ -76,14 +76,22 @@ public:
 		ns3::Simulator::Cancel(nextEvent);
 	};
 
-	
+
 	bool isRunning() const { return running; };
 	bool isComplete() const
-	{ 
-		// Duration should be expressed in Simulator timestamp unit, US in our case.
-		if (ns3::Simulator::Now().GetMicroSeconds() - this->getFirstRecvPacketTime() - (this->getFirstSentPacketTime() - this->getFirstRecvPacketTime()) > this->duration)
-		{ // Take time first receive -> now, plus an extra send->receive interval for jitter. If that's higher than duration, we assume all packets that should arrive have arrived.
-			return true;
+	{
+		if (destination.getDest() != nullptr)
+		{
+			// Duration should be expressed in Simulator timestamp unit, US in our case.
+			if (ns3::Simulator::Now().GetMicroSeconds() - this->getFirstRecvPacketTime() - (this->getFirstSentPacketTime() - this->getFirstRecvPacketTime()) > this->duration)
+			{ // Take time first receive -> now, plus an extra send->receive interval for jitter. If that's higher than duration, we assume all packets that should arrive have arrived.
+				return true;
+			}
+		}
+		else if (sender.getSender() != nullptr)
+		{
+			if (ns3::Simulator::Now().GetMicroSeconds() - this->getFirstSentPacketTime() > 2 * this->duration)
+				return true; // Stream had zero packets arriving in twice its duration, that's definitely gonna be a no for me dawg
 		}
 		return false;
 	};
@@ -92,11 +100,11 @@ public:
 	{
 		if (!isComplete())
 			throw std::runtime_error("Successful check on incomplete flow");
-		
-		//Let's say half can be lost: 
+
+		//Let's say half can be lost:
 		// If recvCount is bigger than sent * 0.5 ( = 1-0.5), we'll return true.
 		// else false, so no reward. Makes sense.
-		
+
 		// Can add grades to this at a later point
 		// #TODO
 		if (this->getRecvCount() > this->getSentCount() * (1-this->threshold))
