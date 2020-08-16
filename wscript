@@ -240,7 +240,7 @@ def options(opt):
                    dest='enable_desmetrics')
     opt.add_option('--cxx-standard',
                    help=('Compile NS-3 with the given C++ standard'),
-                   type='string', default='-std=c++11', dest='cxx_standard')
+                   type='string', default='-std=c++17', dest='cxx_standard')
 
     # options provided in subdirectories
     opt.recurse('src')
@@ -763,7 +763,7 @@ def add_scratch_programs(bld):
             if os.path.isdir(os.path.join("scratch", filename)):
                 obj = bld.create_ns3_program(filename, all_modules)
                 obj.path = obj.path.find_dir('scratch').find_dir(filename)
-                obj.source = obj.path.ant_glob('*.cc')
+                obj.source = obj.path.ant_glob('**/*.cc')
                 obj.target = filename
                 obj.name = obj.target
                 obj.install_path = None

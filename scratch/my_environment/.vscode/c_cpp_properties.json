@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/../../build",
+                "${workspaceFolder}/../../build/ns3",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/../../src"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "${workspaceFolder}/../../"
+                ]
+            }
+        }
+    ],
+    "version": 4
+}

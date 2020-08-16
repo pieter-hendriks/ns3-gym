@@ -1,5 +1,5 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-
+/*
 // Include a header file from your module to test.
 //#include "ns3/opengym.h"
 
@@ -65,4 +65,5 @@ OpengymTestSuite::OpengymTestSuite ()
 
 // Do not forget to allocate an instance of this TestSuite
 static OpengymTestSuite opengymTestSuite;
+*/
 
