@@ -189,12 +189,11 @@ OpenGymInterface::Init()
   // send init msg to python
   zmq::message_t request(simInitMsg.ByteSize());;
   simInitMsg.SerializeToArray(request.data(), simInitMsg.ByteSize());
-  m_zmq_socket.send (request, zmq::send_flags::none);
-
+  m_zmq_socket.send (request, 0);
   // receive init ack msg form python
   ns3opengym::SimInitAck simInitAck;
   zmq::message_t reply;
-  (void) m_zmq_socket.recv (reply, zmq::recv_flags::none);
+  (void) m_zmq_socket.recv (&reply, 0);
   simInitAck.ParseFromArray(reply.data(), reply.size());
 
   bool done = simInitAck.done();
@@ -256,12 +255,12 @@ OpenGymInterface::NotifyCurrentState()
   // send env state msg to python
   zmq::message_t request(envStateMsg.ByteSize());;
   envStateMsg.SerializeToArray(request.data(), envStateMsg.ByteSize());
-  m_zmq_socket.send (request, zmq::send_flags::none);
+  m_zmq_socket.send (request, 0);
 
   // receive act msg form python
   ns3opengym::EnvActMsg envActMsg;
   zmq::message_t reply;
-  (void) m_zmq_socket.recv (reply, zmq::recv_flags::none);
+  (void) m_zmq_socket.recv (&reply, 0);
   envActMsg.ParseFromArray(reply.data(), reply.size());
 
   if (m_simEnd) {
