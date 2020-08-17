@@ -1,7 +1,7 @@
 {
 	"python.linting.pylintEnabled": true,
 	"python.linting.enabled": true,
-	"python.pythonPath": "/home/pieter/school/research/proj_1/venv/bin/python",
+	"python.pythonPath": "/home/pieter/school/research/proj1/venv/bin/python",
 	"files.associations": {
 		"array": "cpp",
 		"hash_map": "cpp",

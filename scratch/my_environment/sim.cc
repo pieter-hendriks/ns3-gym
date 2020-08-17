@@ -41,7 +41,7 @@ main (int argc, char *argv[])
 	// Parameters of the scenario
 	uint32_t simSeed = 1;
 	double simulationTime = 120; //seconds
-	double envStepTime = 0.1; //seconds, ns3gym env step time interval
+	double envStepTime = 1; //seconds, ns3gym env step time interval
 	uint32_t openGymPort = 5555;
 	uint32_t testArg = 0;
 
@@ -62,14 +62,13 @@ main (int argc, char *argv[])
 	NS_LOG_UNCOND("--seed: " << simSeed);
 	NS_LOG_UNCOND("--testArg: " << testArg);
 
-	RngSeedManager::SetSeed (1);
-	RngSeedManager::SetRun (simSeed);
+	// RngSeedManager::SetSeed (1);
+	// RngSeedManager::SetRun (simSeed);
 
 
 	// OpenGym Env
 	Ptr<OpenGymInterface> openGymInterface = CreateObject<OpenGymInterface> (openGymPort);
-	Ptr<SimulationEnvironment> myGym = CreateObject<SimulationEnvironment>(static_cast<unsigned>(envStepTime * 1000000 + 0.5));
-
+	Ptr<SimulationEnvironment> myGym = CreateObject<SimulationEnvironment>(2);
 	myGym->SetOpenGymInterface(openGymInterface);
 	NS_LOG_UNCOND ("Simulation start");
 	//Simulator::Stop (Seconds (simulationTime));

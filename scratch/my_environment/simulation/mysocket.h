@@ -1,7 +1,6 @@
 #pragma once
 #ifndef INC_MY_SOCKET_H_
 #define INC_MY_SOCKET_H_
-#include "ns3/udp-socket-impl.h"
 #include "ns3/udp-socket.h"
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/callback.h"
