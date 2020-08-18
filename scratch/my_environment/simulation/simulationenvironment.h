@@ -12,6 +12,8 @@
 
 #include "flow.h"
 
+#include <map>
+
 class SimulationEnvironment : public ns3::OpenGymEnv
 {
 public:
@@ -36,17 +38,27 @@ friend class TypeId;
 
 	void StateRead();
 	
-	void AddScore(unsigned s);
-	void AddSentPacket();
-	void AddReceivedPacket();
+	void AddCompletedFlow(unsigned id, unsigned s);
+
+	// AddFlowId adds the flow for env to keep track of, 
+	void AddFlowId(unsigned id);
+	// These two increment the counters.
+	void AddSentPacket(unsigned flowId);
+	void AddReceivedPacket(unsigned flowId);
+
+	void setupDefaultEnvironment();
 
 private:
-	void setupDefaultEnvironment();
+	void CreateApplications();
 	void readFlowSpec();
 	unsigned interval;
 	uint64_t nextFlowId;
-	unsigned score, sent, recv;
+	int64_t score, sent, recv;
+	std::map<unsigned, unsigned> sentPacketMap;
+	std::map<unsigned, unsigned> recvPacketMap;
+	std::vector<unsigned> completedFlows;
 	ns3::Ptr<MySender> sendApplication;
+	NodeContainer nodes;
 };
 
 #endif

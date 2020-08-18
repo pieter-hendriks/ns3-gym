@@ -27,6 +27,7 @@ class Flow {
 		double getThroughput() const;
 		bool isCompleted() const;
 		unsigned getValue() const;
+		unsigned getId() const;
 
 		bool operator==(const Flow& o) const;
 		bool operator!=(const Flow& o) const;

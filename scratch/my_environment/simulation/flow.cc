@@ -30,7 +30,9 @@ double Flow::getThroughput() const {
 unsigned Flow::getValue() const {
 	return spec.value;
 }
-
+unsigned Flow::getId() const {
+	return id;
+}
 bool Flow::operator==(const Flow& o) const{
 	return id == o.id;
 }

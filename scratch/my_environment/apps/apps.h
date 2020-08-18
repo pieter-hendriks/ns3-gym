@@ -50,7 +50,7 @@ protected:
   virtual void StartApplication (void);
   virtual void StopApplication (void);
 
-  void SendPacket ();
+  void SendPacket (ns3::Ptr<Packet> packet);
 
   uint32_t        m_pktSize;
   Ipv4Address     m_destAddr;

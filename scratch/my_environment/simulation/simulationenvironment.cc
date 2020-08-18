@@ -37,13 +37,14 @@
 #include "ns3/opengym-module.h"
 #include <ctime>
 #include <sstream>
+#include <numeric>
 
 #include "../apps/mysender.h"
 #include "../apps/myreceiver.h"
 
 #define INPUT_FILE "scratch/my_environment/input/flow.json"
-#define PACKET_SIZE 4608U
-#define WIFI_NODE_COUNT 8u
+
+#define WIFI_NODE_COUNT 10u
 
 
 using namespace ns3;
@@ -57,34 +58,39 @@ TypeId SimulationEnvironment::GetTypeId()
 	return tid;
 }
 
-SimulationEnvironment::SimulationEnvironment(unsigned inter) : interval(inter), nextFlowId(0), score(0), sent(0), recv(0), sendApplication(nullptr)
-{
-	// Create the actual environment, a la sim.cc
-	// We'd prefer to have this here rather than in a different file so we have the entire setup wrapped in this environment.
-	// If necessary, we can define new functions to setup different environment configurations.
-	this->setupDefaultEnvironment();
-	
-	Simulator::ScheduleNow(&SimulationEnvironment::StateRead, this);
-}
+SimulationEnvironment::SimulationEnvironment(unsigned inter) : interval(inter), nextFlowId(0), score(0), sent(0), recv(0), sendApplication(nullptr) {}
 
-void SimulationEnvironment::AddScore(unsigned s)
+void SimulationEnvironment::AddCompletedFlow(unsigned id, unsigned s)
 {
-	score += s;
+	std::cout << "Adding completed flow (" << id << "). Arrival rate = " << static_cast<double>(recvPacketMap.at(id) + 1) / static_cast<double>(sentPacketMap.at(id)) << "." << std::endl;
+	std::cout << "(" << sentPacketMap.at(id) << " sent, " << recvPacketMap.at(id) << " recv)" << std::endl;
+	completedFlows.push_back(id);
+	// +1 to give the benefit of the doubt; packet could be in transit and about to arrive. 
+	// Giving the benefit of the doubt, if ratio almost that high is more likely to be correct than incorrect.
+	if (static_cast<double>(recvPacketMap.at(id) + 1) / static_cast<double>(sentPacketMap.at(id)) > 0.95)
+		score += s;
+	else score -= 1;
 }
-void SimulationEnvironment::AddSentPacket()
+void SimulationEnvironment::AddFlowId(unsigned id)
 {
-	++sent;
+	sentPacketMap.emplace(id, 0);
+	recvPacketMap.emplace(id, 0);
 }
-void SimulationEnvironment::AddReceivedPacket()
+void SimulationEnvironment::AddSentPacket(unsigned flowId)
 {
-	++recv;
+	sentPacketMap.at(flowId) += 1;
+	sent += 1;
+}
+void SimulationEnvironment::AddReceivedPacket(unsigned flowId)
+{
+	recvPacketMap.at(flowId) += 1;
+	recv += 1;
 }
 
 void SimulationEnvironment::setupDefaultEnvironment()
 {
-	NodeContainer nodes; nodes.Create(WIFI_NODE_COUNT + 1);
-	auto AP = nodes.Get(0);
-
+	nodes.Create(WIFI_NODE_COUNT + 1);
+	
 	WifiHelper wifi;
 	WifiMacHelper wifiMac;
 	wifiMac.SetType ("ns3::AdhocWifiMac");
@@ -109,32 +115,35 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	positionAlloc->Add (Vector (0.0, 2.0, 0.0)); positionAlloc->Add (Vector (1.0, 2.0, 0.0)); positionAlloc->Add (Vector (2.0, 2.0, 0.0));
 	mobility.SetPositionAllocator (positionAlloc);
 	mobility.Install (nodes);
-
+	
+	this->CreateApplications();
+	
+	Simulator::ScheduleNow(&SimulationEnvironment::StateRead, this);
+}
+void SimulationEnvironment::CreateApplications()
+{
+	std::cout << "Created applications." << std::endl;
+	auto AP = nodes.Get(0);
 	std::vector<Ptr<MyReceiver>> receivers;
 	std::vector<Ipv4Address> recvAddresses;
 	for (auto i = 1u; i <= WIFI_NODE_COUNT; ++i)
 	{
-		receivers.emplace_back(CreateObject<MyReceiver>(ns3::Ptr<SimulationEnvironment>(this)));
+		receivers.emplace_back(CreateObject<MyReceiver>(ns3::Ptr<SimulationEnvironment>(this), nodes.Get(i)));
 		nodes.Get(i)->AddApplication(receivers.back());
 		recvAddresses.push_back(nodes.Get(i)->GetObject<ns3::Ipv4>()->GetAddress(1,0).GetLocal());
 		receivers.back()->SetStartTime(Seconds(0));
 	}
-	this->sendApplication = CreateObject<MySender>(ns3::Ptr<SimulationEnvironment>(this), recvAddresses);
+	this->sendApplication = CreateObject<MySender>(ns3::Ptr<SimulationEnvironment>(this), recvAddresses, AP);
 	AP->AddApplication(this->sendApplication);
 	this->sendApplication->SetStartTime(Seconds(0.25));
-
 }
 
 void SimulationEnvironment::StateRead()
 {
+	std::cout << "Read Start" << std::endl;
 	Simulator::Schedule(Time::FromInteger(interval, Time::S), &SimulationEnvironment::StateRead, this);
-	/*for (auto it = this->applications.begin(); it != this->applications.end(); ++it)
-	{
-		// Only the applications at the front of the list can be complete, as they're oldest -> newest.
-		if (!it->complete())
-			break;
-	}*/
 	Notify();
+	std::cout << "Read End" << std::endl;
 }
 
 
@@ -154,51 +163,6 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 	this->sendApplication->SetActiveFlows(flowCount);
 
 	return true;
-	// // Open/close flows as required to match number.
-	// // When closing, we close those most recently opened as they're furthest away from the reward.
-	// auto currentlyOpen = this->applications.size();
-	
-	// std::cout << "Executing actions (actionCount = " << actionCount << ")!" <<std::endl;
-	// if (this->applications.capacity() < actionCount)
-	// 	this->applications.reserve(actionCount);
-	// if (actionCount < currentlyOpen)
-	// {
-	// 	std::cout << "Removing action" << std::endl;
-	// 	this->applications.resize(actionCount);
-	// 	std::cout << "Removed action!" << std::endl;
-	// }
-	// if (actionCount > currentlyOpen)
-	// {
-	// 	std::cout << "Activating " << actionCount - currentlyOpen << " extra flows." << std::endl;
-	// 	for (unsigned i = currentlyOpen; i < actionCount; ++i)
-	// 	{
-	// 		// We should create a socket pair for each application, install it on the nodes.
-	// 		MySendSocket srcSock(this->sender->GetObject<UdpSocketFactory>()->CreateSocket());
-	// 		MyRecvSocket dstSock(this->receiver->GetObject<UdpSocketFactory>()->CreateSocket());
-
-	// 		// Get flow id, use as port, increment for future uses.
-	// 		auto port = this->nextFlowId;
-	// 		++this->nextFlowId;
-
-	// 		auto srcIp = this->sender->getIP();
-	// 		auto dstIp = this->receiver->getIP();
-
-	// 		srcSock.get()->Bind(InetSocketAddress(srcIp, port));
-	// 		dstSock.get()->Bind(InetSocketAddress(dstIp, port));
-
-	// 		srcSock.get()->Connect(InetSocketAddress(dstIp, port));
-	// 		// Construct the new sending application in-place.
-	// 		applications.emplace_back(this->flowSpec.period, PACKET_SIZE, this->flowSpec.minThroughput_bps, 0/*this->flowSpec.max_loss*/, std::move(srcSock), std::move(dstSock));
-	// 		applications[applications.size()-1].StartApplication();
-	// 		if ((i - currentlyOpen) % 1000 == 0)
-	// 		{
-	// 			std::cout << i - currentlyOpen << " are done!" << std::endl;
-	// 		}
-	// 	}
-	// 	std::cout << actionCount - currentlyOpen << " extra flows have been activated." << std::endl;
-	// }
-	// std::cout << "Actions executed!" << std::endl;
-	// return true;
 }
 
 Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
@@ -226,12 +190,32 @@ bool SimulationEnvironment::GetGameOver()
 	// --> We simply support infinite streams for now, python agent controls episode length.
 	return false;
 }
-
+void removeCompleted(std::map<unsigned, unsigned>& recvMap, std::map<unsigned, unsigned>& sentMap, std::vector<unsigned>& completed)
+{
+	for (auto keyValue : completed) 
+	{
+		recvMap.erase(keyValue);
+		sentMap.erase(keyValue);
+	}
+	completed.clear();
+}
 float SimulationEnvironment::GetReward()
 {
+	auto points = score, sentCount = sent, recvCount = recv;
+	score = 0; sent = 0; recv = 0;
+	float ret;
 	if (this->sendApplication->getActiveCount() != 0)
-		return score - (5 * recv/sent);
-	return -5;
+	{
+		ret = points + (-5 * (1 - (1.0 * recvCount)/sentCount));
+	}
+	else 
+	{
+		ret = -5;
+	}
+	removeCompleted(recvPacketMap, sentPacketMap, completedFlows);
+	if (ret > 200000)
+		throw std::runtime_error("That's not supposed to happen.");
+	return ret;
 }
 
 std::string SimulationEnvironment::GetExtraInfo()

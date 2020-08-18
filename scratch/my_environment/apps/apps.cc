@@ -109,7 +109,7 @@ void Sender::StartApplication ()
   m_count = 0;
 
   Simulator::Cancel (m_sendEvent);
-  m_sendEvent = Simulator::ScheduleNow (&Sender::SendPacket, this);
+  // m_sendEvent = Simulator::ScheduleNow (&Sender::SendPacket, this);
 
   // end Sender::StartApplication
 }
@@ -121,13 +121,12 @@ void Sender::StopApplication ()
   // end Sender::StopApplication
 }
 
-void Sender::SendPacket ()
+void Sender::SendPacket (Ptr<Packet> packet)
 {
   // NS_LOG_FUNCTION_NOARGS ();
   NS_LOG_INFO ("Sending packet at " << Simulator::Now () << " to " <<
                m_destAddr);
 
-  Ptr<Packet> packet = Create<Packet>(m_pktSize);
 
   TimestampTag timestamp;
   timestamp.SetTimestamp (Simulator::Now ());

@@ -12,7 +12,7 @@ class MySender : public Sender
 	public:
 		//TypeId GetTypeId (void);
 		MySender();
-		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses);
+		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node);
 		virtual ~MySender();
 		void SetActiveFlows(unsigned newFlowCount);
 		void Send(const Flow& flow);
@@ -21,14 +21,15 @@ class MySender : public Sender
 
 	private:
 		void HandleFlowCompletion(const Flow& flow);
-
-
+		void createFlow();
+		bool active;
 		std::vector<Ipv4Address> receivers;
-		unsigned currentFlowIndex;
+		unsigned currentReceiverIndex;
 		std::deque<Flow> flowList;
 
 		FlowSpec flowspec;
 		ns3::Ptr<SimulationEnvironment> env;
+		unsigned currentFlowGoal;
 
 };
 #endif
