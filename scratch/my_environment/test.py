@@ -27,7 +27,7 @@ class MyProcessor(Processor):
 		super().__init__()
 
 	def process_action(self, action):
-		action = abs(int(action)) % 1024 # This should be plenty for the stream type we're doing. Each stream is currently 192 kbps.
+		action = abs(int(action)) % 256 # This should be plenty for the stream type we're doing. Each stream is currently 192 kbps.
 		# action = ctypes.c_int32(action).value
 		print(f"Acting: {action}")
 		return action
@@ -118,7 +118,7 @@ try:
 	# print(critic.summary())
 	print(f"TESTING MY PRINTING")
 	memory = SequentialMemory(limit=50000, window_length=1)
-	random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
+	random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=1, mu=0., sigma=3)
 	agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
 										memory=memory, nb_steps_warmup_critic=400, nb_steps_warmup_actor=400,
 										random_process=random_process, gamma=.995, target_model_update=2e-3, processor = MyProcessor())
