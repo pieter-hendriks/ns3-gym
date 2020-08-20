@@ -31,6 +31,8 @@
 #include "ns3/applications-module.h"
 #include "ns3/timer.h"
 
+#include <ctime>
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("OpenGym");
@@ -62,8 +64,7 @@ main (int argc, char *argv[])
 	NS_LOG_UNCOND("--seed: " << simSeed);
 	NS_LOG_UNCOND("--testArg: " << testArg);
 
-	// RngSeedManager::SetSeed (1);
-	// RngSeedManager::SetRun (simSeed);
+	RngSeedManager::SetSeed (std::time(nullptr));
 
 	std::cout << "Starting simulation:\n\tstepTime = " << envStepTime << "\n\tsimTime = " << simulationTime << "\n\tPort = " << openGymPort << std::endl;
 	// OpenGym Env
@@ -71,12 +72,13 @@ main (int argc, char *argv[])
 	Ptr<SimulationEnvironment> myGym = CreateObject<SimulationEnvironment>(envStepTime);
 	myGym->SetOpenGymInterface(openGymInterface);
 	NS_LOG_UNCOND ("Simulation start");
-	Simulator::Stop (Seconds (simulationTime));
 	//std::function<void(MyGymEnv&, MyNode&, MyReceiverNode&)> check = &checkFunction;
 	Time::SetResolution(ns3::Time::Unit::US);
 	//Simulator::ScheduleNow(check);
-
+	//Simulator::ScheduleNow(&SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
 	Simulator::Schedule(ns3::Time::FromInteger(100, ns3::Time::Unit::MS), &SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
+
+	Simulator::Stop (Seconds (simulationTime));
 	Simulator::Run ();
 	NS_LOG_UNCOND ("Simulation stop");
 

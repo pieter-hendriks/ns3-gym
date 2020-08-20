@@ -1,0 +1,11 @@
+Done-ZONIES:
+	Node movement (untested)
+	Noise op channel
+
+TODO:
+	LTE channel ( + vergelijk niet-RL)
+	Wifi vergelijking niet-RL
+
+	Random distributies voor flow duration/packet size/...
+	Flow types (high priority, best effort) 
+		Zijn er hier meer dan 2 nodig? Mogelijk verschillende kwaliteitsklassen met verschillende datarate requirements. 

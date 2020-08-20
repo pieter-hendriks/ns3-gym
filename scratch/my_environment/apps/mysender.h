@@ -22,11 +22,12 @@ class MySender : public Sender
 	private:
 		void HandleFlowCompletion(const Flow& flow);
 		void createFlow();
+		void scheduleCreateFlow();
 		bool active;
 		std::vector<Ipv4Address> receivers;
 		unsigned currentReceiverIndex;
 		std::deque<Flow> flowList;
-
+		unsigned flowsToRecreate;
 		FlowSpec flowspec;
 		ns3::Ptr<SimulationEnvironment> env;
 		unsigned currentFlowGoal;

@@ -39,6 +39,7 @@ friend class TypeId;
 	void StateRead();
 	
 	void AddCompletedFlow(unsigned id, unsigned s);
+	void HandleFlowCancellation(std::vector<unsigned>& flows);
 
 	// AddFlowId adds the flow for env to keep track of, 
 	void AddFlowId(unsigned id);
@@ -47,18 +48,19 @@ friend class TypeId;
 	void AddReceivedPacket(unsigned flowId);
 
 	void setupDefaultEnvironment();
-
 private:
 	void CreateApplications();
 	void readFlowSpec();
+	void handleCancelledFlows();
 	unsigned interval;
 	uint64_t nextFlowId;
 	int64_t score, sent, recv;
 	std::map<unsigned, unsigned> sentPacketMap;
 	std::map<unsigned, unsigned> recvPacketMap;
-	std::vector<unsigned> completedFlows;
+	std::vector<unsigned> completedFlows, cancelledFlows;
 	ns3::Ptr<MySender> sendApplication;
 	NodeContainer nodes;
+	ns3::Ptr<Node> noiseNode;
 };
 
 #endif

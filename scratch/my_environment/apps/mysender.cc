@@ -20,11 +20,10 @@ NS_LOG_COMPONENT_DEFINE("MySender");
 // 	return tid;
 // };
 MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node) 
-: active(false), receivers(std::move(addresses)), currentReceiverIndex(0), flowList(), flowspec(readFlowSpec("scratch/my_environment/input/flow.json")), env(std::move(ptr)), currentFlowGoal(0)
+: active(false), receivers(std::move(addresses)), currentReceiverIndex(0), flowList(), flowsToRecreate(0), flowspec(readFlowSpec("scratch/my_environment/input/flow.json")), env(std::move(ptr)), currentFlowGoal(0)
 { 
 	this->m_node = node;
-	this->m_pktSize = 576;
-	//this->AggregateObject(CreateObject<ns3::UdpSocketFactoryImpl>());
+	this->m_pktSize = 11520 /* 576 * 20 */; // Was originally 576, increased for performance reasons. Probably not a great solution, but problem appears to be in simulator.
 };
 MySender::~MySender() 
 {
@@ -36,12 +35,13 @@ void MySender::createFlow()
 {
 	auto& addedFlow = flowList.emplace_back(Flow(flowspec, currentReceiverIndex++));
 	currentReceiverIndex %= receivers.size();
-
-	ns3::Simulator::ScheduleNow(&MySender::Send, this, addedFlow);
+	ns3::Simulator::Schedule(ns3::Time::FromInteger(2, ns3::Time::Unit::MS), &MySender::Send, this, addedFlow);
+	//ns3::Simulator::ScheduleNow(&MySender::Send, this, addedFlow);
 	env->AddFlowId(addedFlow.getId());
 }
 void MySender::SetActiveFlows(unsigned newFlowCount)
 {
+	// We punish only for decrease in active flows. Not allowing flows to be recreated is not an issue.
 	currentFlowGoal = newFlowCount;
 	auto flowCount = flowList.size();
 	if (flowCount < newFlowCount)
@@ -55,15 +55,27 @@ void MySender::SetActiveFlows(unsigned newFlowCount)
 	else if (flowCount > newFlowCount)
 	{
 		// Flows are started in sequence, we can always cancel the most recently created ones for optimal completion.
-		auto toCancel = flowCount - newFlowCount;
-		auto startIt = flowList.begin() + toCancel; 
+		auto startIt = flowList.begin() + newFlowCount; 
+
+		std::vector<unsigned> removedFlows;
+		while (startIt != flowList.end())
+		{
+			removedFlows.push_back(startIt->getId());
+			++startIt;
+		}
+		env->HandleFlowCancellation(removedFlows);
+
+		startIt = flowList.begin() + newFlowCount;
 		flowList.erase(startIt, flowList.end());
+		std::cout << "New size: " << flowList.size() << "\nExpected Size: " << newFlowCount << std::endl;
+		if (flowList.size() != newFlowCount) throw std::runtime_error("fuk");
 	}
 	// if equal we do nothing
 }
 
 void MySender::Send(const Flow& flow)
 {
+	std::cout << "Sending" << std::endl;
 	// if application wasn't started yet, start it now.
 	if (!active)
 	{
@@ -86,19 +98,20 @@ void MySender::Send(const Flow& flow)
 	// Schedule delay = packetsize/throughput
 	if (!flow.isCompleted())
 	{
-		ns3::Simulator::Schedule(ns3::Seconds(m_pktSize / flow.getThroughput()), &MySender::Send, this, flow);
+		// flow is in bits per second, packet size in bytes.
+		ns3::Simulator::Schedule(ns3::Seconds(m_pktSize * 8 / flow.getThroughput()), &MySender::Send, this, flow);
 	}
 	else
 	{
 		this->HandleFlowCompletion(flow);
-		if (flowList.size() < currentFlowGoal)
-		{
-			this->createFlow();
-		}
+		// this->scheduleCreateFlow();
 	}
 	
 }
-
+// void MySender::scheduleCreateFlow()
+// {
+// 	flowsToRecreate += 1;
+// }
 void MySender::HandleFlowCompletion(const Flow& flow)
 {
 	if (!flow.isCompleted())

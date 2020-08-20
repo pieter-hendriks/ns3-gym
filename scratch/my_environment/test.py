@@ -128,13 +128,13 @@ try:
 		optimizer._name = 'Adam'
 		agent.compile(optimizer, metrics=['mae'])
 
-		agent.fit(env, nb_steps=2000, visualize=False, verbose=1, nb_max_episode_steps=1000)
+		agent.fit(env, nb_steps=50, visualize=False, verbose=1, nb_max_episode_steps=10)
 
 		# After training is done, we save the final weights.
 		agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
 		# Finally, evaluate our algorithm for 5 episodes.
-		agent.test(env, nb_episodes=5, visualize=True, nb_max_episode_steps=60)
+		agent.test(env, nb_episodes=3, visualize=True, nb_max_episode_steps=5)
 
 except KeyboardInterrupt:
 		print("Ctrl-C -> Exit")

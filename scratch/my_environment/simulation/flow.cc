@@ -18,7 +18,9 @@ float Flow::getProgress() const {
 	auto progress = lifetime / (1.0 * spec.period.GetMilliSeconds());
 	return (progress > 1) ? 1 : progress;
 }
-
+const FlowSpec& Flow::getSpec() const {
+	return spec;
+}
 bool Flow::isCompleted() const {
 	return static_cast<unsigned>(this->getProgress()) == 1;
 }

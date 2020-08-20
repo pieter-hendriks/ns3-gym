@@ -28,6 +28,7 @@ class Flow {
 		bool isCompleted() const;
 		unsigned getValue() const;
 		unsigned getId() const;
+		const FlowSpec& getSpec() const;
 
 		bool operator==(const Flow& o) const;
 		bool operator!=(const Flow& o) const;
