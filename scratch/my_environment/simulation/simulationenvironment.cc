@@ -202,7 +202,7 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	//Simulator::Schedule(Time::FromInteger(interval, Time::S), &SimulationEnvironment::StateRead, this);
 	Simulator::ScheduleNow(&SimulationEnvironment::StateRead, this);
 
-	wifiPhy.EnablePcapAll("mypcap", true);
+	//wifiPhy.EnablePcapAll("mypcap", true);
 
 	//std::cout << "Environment set up" << std::endl;
 }

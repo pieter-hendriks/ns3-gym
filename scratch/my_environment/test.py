@@ -62,7 +62,7 @@ iterationNum = int(args.iterations)
 runEvalOnly = bool(args.eval)
 port = int(args.port)
 simTime = 600 # seconds
-stepTime = 0.5 # seconds
+stepTime = 5 # seconds
 seed = random.randint(0, 150000)
 simArgs = {"--simTime": simTime,
 					 "--stepTime": stepTime,
@@ -121,12 +121,12 @@ try:
 	random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
 	agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
 										memory=memory, nb_steps_warmup_critic=400, nb_steps_warmup_actor=400,
-										random_process=random_process, gamma=.975, target_model_update=5e-3, processor = MyProcessor())
-	optimizer = Adam(lr=.001, clipnorm=1.)
+										random_process=random_process, gamma=.995, target_model_update=2e-3, processor = MyProcessor())
+	optimizer = Adam(lr=.002, clipnorm=1.)
 	optimizer._name = 'Adam'
 	agent.compile(optimizer, metrics=['mae'])
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=1800, visualize=False, verbose=1, nb_max_episode_steps=600)
+		agent.fit(env, nb_steps=4800, visualize=False, verbose=1, nb_max_episode_steps=120)
 
 		# After training is done, we save the final weights.
 		agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
