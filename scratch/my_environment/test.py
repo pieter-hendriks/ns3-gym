@@ -126,7 +126,7 @@ try:
 	optimizer._name = 'Adam'
 	agent.compile(optimizer, metrics=['mae'])
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=4800, visualize=False, verbose=1, nb_max_episode_steps=120)
+		agent.fit(env, nb_steps=5000, visualize=False, verbose=1, nb_max_episode_steps=120)
 
 		# After training is done, we save the final weights.
 		agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)

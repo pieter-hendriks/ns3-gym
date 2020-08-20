@@ -304,7 +304,7 @@ void removeCompleted(std::map<unsigned, unsigned>& recvMap, std::map<unsigned, u
 }
 void SimulationEnvironment::handleCancelledFlows()
 {
-	score -= cancelledFlows.size() * 10;
+	//score -= cancelledFlows.size() * 10;
 	for (auto x : cancelledFlows)
 	{
 		sentPacketMap.erase(x);
@@ -332,7 +332,7 @@ float SimulationEnvironment::GetReward()
 	{
 		// For activeCount 0, we can't have bonus from completed flows
 		// However, extra punishment from cancelled flows should be incurred.
-		ret = points - 5;
+		ret = points - 50.9999980927;
 	}
 	//std::cout << "\tTotal: " << ret << std::endl;
 	removeCompleted(recvPacketMap, sentPacketMap, completedFlows);
