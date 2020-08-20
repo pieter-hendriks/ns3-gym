@@ -49,7 +49,7 @@ friend class TypeId;
 
 	void setupDefaultEnvironment();
 private:
-	void CreateApplications();
+	void CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDevice);
 	void readFlowSpec();
 	void handleCancelledFlows();
 	unsigned interval;

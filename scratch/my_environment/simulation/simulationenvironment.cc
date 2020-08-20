@@ -140,13 +140,13 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	nodeSet.Add(nodes.Get(0));
 	nodeSet.Create(1);
 	noiseNode = nodeSet.Get(1);
-	wifiPhy.Set("TxPowerStart", DoubleValue(-85));
-	wifiPhy.Set("TxPowerEnd", DoubleValue(-95));
+	wifiPhy.Set("TxPowerStart", DoubleValue(-25));
+	wifiPhy.Set("TxPowerEnd", DoubleValue(-25));
 	auto noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
-	internet.Install(noiseNode);
 	internet.SetIpv4StackInstall(true);
 	internet.SetIpv6StackInstall(false);
 	ipAddrs.SetBase("192.168.1.0", "255.255.255.0");
+	internet.Install(noiseNode);
 	ipAddrs.Assign(noiseDevice);
 	mobility.Install(nodeSet);
 	nodeSet = NodeContainer();
@@ -162,14 +162,14 @@ void SimulationEnvironment::setupDefaultEnvironment()
 														"Bounds", StringValue("0|5|0|5"));
 	mobility.Install (nodeSet);
 	
-	this->CreateApplications();
+	this->CreateApplications(noiseDevice.Get(0));
 	std::cout << "Scheduled stateRead " << interval << " seconds from now." << std::endl;
 	//Simulator::Schedule(Time::FromInteger(interval, Time::S), &SimulationEnvironment::StateRead, this);
 	Simulator::ScheduleNow(&SimulationEnvironment::StateRead, this);
 
 	std::cout << "Environment set up" << std::endl;
 }
-void SimulationEnvironment::CreateApplications()
+void SimulationEnvironment::CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDevice)
 {
 	auto AP = nodes.Get(0);
 	std::vector<Ptr<MyReceiver>> receivers;
@@ -185,7 +185,7 @@ void SimulationEnvironment::CreateApplications()
 	AP->AddApplication(this->sendApplication);
 	this->sendApplication->SetStartTime(ns3::Time::FromInteger(500, ns3::Time::Unit::MS));
 
-	auto noiseApp = CreateObject<MyNoiseMachine>();
+	auto noiseApp = CreateObject<MyNoiseMachine>(noiseDevice);
 	noiseNode->AddApplication(noiseApp);
 	noiseApp->SetStartTime(ns3::Time::FromInteger(150, ns3::Time::Unit::MS));
 }

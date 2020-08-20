@@ -6,10 +6,12 @@
 class MyNoiseMachine : public ns3::Application
 {
 	public:
+		MyNoiseMachine(ns3::Ptr<ns3::NetDevice> noiseDevice);
 		void StartApplication();
 		void StopApplication();
 		void Send();
 	private:
+		ns3::Ptr<ns3::NetDevice> dev;
 		ns3::EventId event;
 };
 #endif
