@@ -20,7 +20,7 @@ public:
 
 friend class TypeId;
 	SimulationEnvironment() { throw std::runtime_error("Needed for ns3 stuff, but shouldn't ever be called."); };
-	SimulationEnvironment(unsigned inter);
+	SimulationEnvironment(double inter);
 	SimulationEnvironment(SimulationEnvironment&) = delete;
 	SimulationEnvironment& operator=(SimulationEnvironment&) = delete;
 
@@ -44,7 +44,7 @@ friend class TypeId;
 	// AddFlowId adds the flow for env to keep track of, 
 	void AddFlowId(unsigned id);
 	// These two increment the counters.
-	void AddSentPacket(unsigned flowId);
+	void AddSentPacket(unsigned flowId, unsigned packetSize);
 	void AddReceivedPacket(unsigned flowId);
 
 	void setupDefaultEnvironment();
@@ -52,15 +52,16 @@ private:
 	void CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDevice);
 	void readFlowSpec();
 	void handleCancelledFlows();
-	unsigned interval;
+	double interval;
 	uint64_t nextFlowId;
-	int64_t score, sent, recv;
+	int64_t score, sent, recv, sentSize;
 	std::map<unsigned, unsigned> sentPacketMap;
 	std::map<unsigned, unsigned> recvPacketMap;
 	std::vector<unsigned> completedFlows, cancelledFlows;
 	ns3::Ptr<MySender> sendApplication;
 	NodeContainer nodes;
 	ns3::Ptr<Node> noiseNode;
+	std::ofstream out;
 };
 
 #endif

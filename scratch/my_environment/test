@@ -1,2 +1,2 @@
 #!/bin/bash
-(. ../../venv/bin/activate && python test.py --start 0)
+(. ../../venv/bin/activate && python test.py --start 0 "$@") 

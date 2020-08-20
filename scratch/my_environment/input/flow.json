@@ -1,10 +1,10 @@
 {
 	"goal_type": "VOIP",
-	"point_value": 50,
-	"hold_period": 3,
+	"point_value": 25,
+	"hold_period": 8,
 	"requirements": {
 		"max_latency_s": 0.09,
-		"min_throughput_bps": 65536,
+		"min_throughput_bps": 196608,
 		"max_jitter_s": 0.01,
 		"max_loss_percentage": 0.0001
 	}

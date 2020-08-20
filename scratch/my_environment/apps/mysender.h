@@ -6,13 +6,15 @@
 #include "../simulation/flow.h"
 
 #include <deque>
+#include <random>
+#include <memory>
 class SimulationEnvironment;
 class MySender : public Sender
 {
 	public:
 		//TypeId GetTypeId (void);
-		MySender();
-		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node);
+		MySender() = delete;
+		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD);
 		virtual ~MySender();
 		void SetActiveFlows(unsigned newFlowCount);
 		void Send(const Flow& flow);
@@ -31,6 +33,8 @@ class MySender : public Sender
 		FlowSpec flowspec;
 		ns3::Ptr<SimulationEnvironment> env;
 		unsigned currentFlowGoal;
+		std::default_random_engine generator;
+		std::unique_ptr<std::normal_distribution<double>> packetSizeDist;
 
 };
 #endif

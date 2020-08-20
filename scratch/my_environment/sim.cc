@@ -42,8 +42,8 @@ main (int argc, char *argv[])
 {
 	// Parameters of the scenario
 	uint32_t simSeed = 1;
-	double simulationTime = 600; //seconds
-	double envStepTime = 3; //seconds, ns3gym env step time interval
+	double simulationTime = 600;//600; //seconds
+	double envStepTime = 0.5; //seconds, ns3gym env step time interval
 	uint32_t openGymPort = 5555;
 	uint32_t testArg = 0;
 

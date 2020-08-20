@@ -3,20 +3,24 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
-
+#include <random>
+#include <ctime>
+#include <iomanip>
+std::default_random_engine FlowSpec::generator (std::time(nullptr));
 Flow::Flow(const FlowSpec& fs, unsigned dest) : spec(fs), destination(dest)
 {
 	static unsigned _id;
 	id = _id++;
 	creationTime = ns3::Simulator::Now();
-	std::cout << "Activated flow " << id << std::endl;
+	period = spec.getPeriod();
+	//std::cout << "Activated flow " << id << std::endl;
 }
 unsigned Flow::getDestination() const {
 	return destination;
 }
 float Flow::getProgress() const {
 	auto lifetime = ns3::Simulator::Now().GetMilliSeconds() - creationTime.GetMilliSeconds();
-	auto progress = lifetime / (1.0 * spec.period.GetMilliSeconds());
+	auto progress = lifetime / (1.0 * period.GetMilliSeconds());
 	return (progress > 1) ? 1 : progress;
 }
 const FlowSpec& Flow::getSpec() const {
@@ -43,20 +47,44 @@ bool Flow::operator!=(const Flow& o) const {
 	return id != o.id;
 }
 
+
+FlowSpec::FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD) 
+: type(std::move(t)), value(v), minThroughput_bps(bps),
+ periodDistribution(std::make_unique<std::normal_distribution<double>>(periodMean, periodSD)) {
+
+};
+FlowSpec::FlowSpec(const FlowSpec& o) : type(o.type), value(o.value), minThroughput_bps(o.minThroughput_bps), periodDistribution(std::make_unique<std::normal_distribution<double>>(*o.periodDistribution))  {}
+
+FlowSpec& FlowSpec::operator=(const FlowSpec& o)
+{
+	type = o.type;
+	value = o.value;
+	minThroughput_bps = o.minThroughput_bps;
+	periodDistribution = std::make_unique<std::normal_distribution<double>>(*o.periodDistribution);
+	return *this;
+}
+ns3::Time FlowSpec::getPeriod() const
+{
+	double value = FlowSpec::periodDistribution->operator()(FlowSpec::generator);
+	//std::cout << "Returning flow duration = " << std::setw(5) << value << " seconds." << std::endl;
+	return ns3::Time::FromDouble(value, ns3::Time::Unit::S);
+
+}
+
 FlowSpec readFlowSpec(const std::string& file)
 {
 	std::ifstream in (file);
 	std::stringstream ss;
 	ss << in.rdbuf();
 	nlohmann::json JSON = nlohmann::json::parse(ss.str());
-	ns3::Time period = ns3::Time::FromInteger(JSON["hold_period"].get<unsigned>(), ns3::Time::Unit::S);
+
+	unsigned holdTime = JSON["hold_period"].get<unsigned>();
+	double periodMean = holdTime;
+	double periodSD = holdTime / 10.0;
 	return FlowSpec {
 		JSON["goal_type"],
 		JSON["point_value"].get<unsigned>(),
-		period,
-		// JSON["requirements"]["max_latency_s"],
-		JSON["requirements"]["min_throughput_bps"].get<double>()
-		// JSON["requirements"]["max_jitter_s"],
-		// JSON["requirements"]["max_loss_percentage"]
+		JSON["requirements"]["min_throughput_bps"].get<double>(),
+		periodMean, periodSD
 	};
 }

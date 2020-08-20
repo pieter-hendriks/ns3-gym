@@ -12,18 +12,26 @@
 
 #include <stdexcept>
 #include <ostream>
+#include <cmath>
+#include <ctime>
+#include <iomanip>
 NS_LOG_COMPONENT_DEFINE("MySender");
+
+#define MAX_PACKET_SIZE 1500U
+#define MIN_PACKET_SIZE 100U
 // TypeId MySender::GetTypeId (void)
 // {
 // 	static TypeId tid = TypeId("MySender").SetParent<Sender>().AddConstructor<MySender>();
 // 	return tid;
 // };
-MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node) 
-: active(false), receivers(std::move(addresses)), currentReceiverIndex(0), flowList(), flowsToRecreate(0), flowspec(readFlowSpec("scratch/my_environment/input/flow.json")), env(std::move(ptr)), currentFlowGoal(0)
+MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD) 
+: active(false), receivers(std::move(addresses)), currentReceiverIndex(0), flowList(), flowsToRecreate(0), flowspec(readFlowSpec("scratch/my_environment/input/flow.json")),
+ env(std::move(ptr)), currentFlowGoal(0), generator(std::time(nullptr)), packetSizeDist(std::make_unique<std::normal_distribution<>>(pkSzMean, pkSzSD))
+	
 { 
 	this->m_node = node;
-	this->m_pktSize = 46080; // Was originally 576, increased for performance reasons. Probably not a great solution, but sending many packets really slows things down too much.
-};
+	this->m_pktSize = 576; 
+}
 MySender::~MySender() 
 {
 	NS_LOG_FUNCTION_NOARGS ();
@@ -32,9 +40,10 @@ MySender::~MySender()
 }
 void MySender::createFlow()
 {
+	static std::normal_distribution<double> dist(0, 100);
 	auto& addedFlow = flowList.emplace_back(Flow(flowspec, currentReceiverIndex++));
 	currentReceiverIndex %= receivers.size();
-	ns3::Simulator::Schedule(ns3::Time::FromInteger(2, ns3::Time::Unit::MS), &MySender::Send, this, addedFlow);
+	ns3::Simulator::Schedule(ns3::Time::FromDouble(std::abs(dist(generator)), ns3::Time::Unit::MS), &MySender::Send, this, addedFlow);
 	//ns3::Simulator::ScheduleNow(&MySender::Send, this, addedFlow);
 	env->AddFlowId(addedFlow.getId());
 }
@@ -84,14 +93,16 @@ void MySender::Send(const Flow& flow)
 		return;
 	
 	m_destAddr = receivers[flow.getDestination()];
+	m_pktSize = std::min(MAX_PACKET_SIZE, std::max(static_cast<unsigned>(std::abs(packetSizeDist->operator()(generator))), MIN_PACKET_SIZE));
   Ptr<Packet> packet = Create<Packet>(m_pktSize);
+	// std::cout << "Returning packet size = " << m_pktSize << " bytes." << std::endl;
 
 	FlowTag tag;
 	tag.setId(flow.getId());
 	packet->AddByteTag(tag);
 
 	this->SendPacket(packet);
-	env->AddSentPacket(flow.getId());
+	env->AddSentPacket(flow.getId(), m_pktSize);
 	// Schedule delay = packetsize/throughput
 	if (!flow.isCompleted())
 	{
