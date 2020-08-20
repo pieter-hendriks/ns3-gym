@@ -4,15 +4,16 @@
 #include <iostream>
 #include <sstream>
 
-Flow::Flow(const FlowSpec& fs, unsigned dest) : spec(fs), destination(dest) {
+Flow::Flow(const FlowSpec& fs, unsigned dest) : spec(fs), destination(dest)
+{
 	static unsigned _id;
 	id = _id++;
 	creationTime = ns3::Simulator::Now();
+	std::cout << "Activated flow " << id << std::endl;
 }
 unsigned Flow::getDestination() const {
 	return destination;
 }
-
 float Flow::getProgress() const {
 	auto lifetime = ns3::Simulator::Now().GetMilliSeconds() - creationTime.GetMilliSeconds();
 	auto progress = lifetime / (1.0 * spec.period.GetMilliSeconds());

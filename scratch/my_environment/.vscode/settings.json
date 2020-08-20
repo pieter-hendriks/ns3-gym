@@ -71,6 +71,7 @@
 		"variant": "cpp",
 		"typeindex": "cpp",
 		"bit": "cpp",
-		"cassert": "cpp"
+		"cassert": "cpp",
+		"*.inc": "cpp"
 	},
 }

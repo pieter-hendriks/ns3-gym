@@ -22,7 +22,7 @@ MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Ad
 : active(false), receivers(std::move(addresses)), currentReceiverIndex(0), flowList(), flowsToRecreate(0), flowspec(readFlowSpec("scratch/my_environment/input/flow.json")), env(std::move(ptr)), currentFlowGoal(0)
 { 
 	this->m_node = node;
-	this->m_pktSize = 11520 /* 576 * 20 */; // Was originally 576, increased for performance reasons. Probably not a great solution, but problem appears to be in simulator.
+	this->m_pktSize = 46080; // Was originally 576, increased for performance reasons. Probably not a great solution, but sending many packets really slows things down too much.
 };
 MySender::~MySender() 
 {
@@ -59,22 +59,20 @@ void MySender::SetActiveFlows(unsigned newFlowCount)
 		std::vector<unsigned> removedFlows;
 		while (startIt != flowList.end())
 		{
+			// Cancel all the removed flows and remove them from the list. 
+			// Record ids to pass on to env
 			removedFlows.push_back(startIt->getId());
 			++startIt;
 		}
 		env->HandleFlowCancellation(removedFlows);
-
 		startIt = flowList.begin() + newFlowCount;
 		flowList.erase(startIt, flowList.end());
-		std::cout << "New size: " << flowList.size() << "\nExpected Size: " << newFlowCount << std::endl;
-		if (flowList.size() != newFlowCount) throw std::runtime_error("fuk");
 	}
 	// if equal we do nothing
 }
 
 void MySender::Send(const Flow& flow)
 {
-	std::cout << "Sending" << std::endl;
 	// if application wasn't started yet, start it now.
 	if (!active)
 	{
@@ -82,7 +80,7 @@ void MySender::Send(const Flow& flow)
 		this->StartApplication();
 	}
 	// if send event being triggered is for a flow that has been cancelled, ignore it. 
-	if (std::find(flowList.begin(), flowList.end(), flow) == flowList.end()) 
+	if (std::find(flowList.begin(), flowList.end(), flow) == flowList.end())
 		return;
 	
 	m_destAddr = receivers[flow.getDestination()];

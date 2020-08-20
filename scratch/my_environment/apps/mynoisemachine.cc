@@ -19,7 +19,7 @@ void MyNoiseMachine::Send()
 	const auto pkt_size = 1500u;
 	auto pkt = ns3::Create<ns3::Packet>(pkt_size);
 	dev->Send(pkt, Mac48Address::GetBroadcast(), 0);
-	Simulator::Schedule(ns3::Time::FromInteger(1 + std::rand() % 150, ns3::Time::Unit::MS), &MyNoiseMachine::Send, this);
+	Simulator::Schedule(ns3::Time::FromInteger(50 + std::rand() % 151, ns3::Time::Unit::MS), &MyNoiseMachine::Send, this);
 }
 void MyNoiseMachine::StopApplication()
 {

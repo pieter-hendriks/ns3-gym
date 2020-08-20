@@ -65,24 +65,30 @@ SimulationEnvironment::SimulationEnvironment(unsigned inter) : interval(inter), 
 
 void SimulationEnvironment::AddCompletedFlow(unsigned id, unsigned s)
 {
-	std::cout << "Adding completed flow." << std::endl;
+	std::cout << "Adding completed flow: " << id << std::endl;
 	completedFlows.push_back(id);
 	// +1 to give the benefit of the doubt; packet could be in transit and about to arrive. 
 	// Giving the benefit of the doubt, if ratio almost that high is more likely to be correct than incorrect.
 	if (static_cast<double>(recvPacketMap.at(id) + 1) / static_cast<double>(sentPacketMap.at(id)) > 0.95)
 		score += s;
-	else score -= 1;
+	else if (static_cast<double>(recvPacketMap.at(id) + 1) / static_cast<double>(sentPacketMap.at(id)) > 0.75)
+		score += s/10;
+	else 
+		score -= s/5;
 }
+
 void SimulationEnvironment::AddFlowId(unsigned id)
 {
 	sentPacketMap.emplace(id, 0);
 	recvPacketMap.emplace(id, 0);
 }
+
 void SimulationEnvironment::AddSentPacket(unsigned flowId)
 {
 	sentPacketMap.at(flowId) += 1;
 	sent += 1;
 }
+
 void SimulationEnvironment::AddReceivedPacket(unsigned flowId)
 {
 	if (recvPacketMap.find(flowId) != recvPacketMap.end())
@@ -91,6 +97,7 @@ void SimulationEnvironment::AddReceivedPacket(unsigned flowId)
 		recv += 1;
 	}
 }
+
 void SimulationEnvironment::setupDefaultEnvironment()
 {
 	nodes.Create(WIFI_NODE_COUNT + 1);
@@ -98,8 +105,8 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
 
-	wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel",
-																	"Frequency", DoubleValue (5.180e9));
+	// wifiChannel.AddPropagationLoss ("ns3::FriisPropagationLossModel",
+	// 																"Frequency", DoubleValue (5.180e9));
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 
 	wifiPhy.SetChannel (wifiChannel.Create ());
@@ -107,8 +114,7 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	wifiPhy.Set ("TxPowerEnd", DoubleValue (1));
 	wifiPhy.Set ("Frequency", UintegerValue (5180));
 	WifiHelper wifi;
-	wifi.SetRemoteStationManager("ns3::MinstrelHtWifiManager");
-	wifi.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
+	wifi.SetRemoteStationManager("ns3::AarfWifiManager");
 	WifiMacHelper wifiMac;
 	wifiMac.SetType ("ns3::AdhocWifiMac");
 	NetDeviceContainer nodeDevices = wifi.Install (wifiPhy, wifiMac, nodes);
@@ -140,8 +146,8 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	nodeSet.Add(nodes.Get(0));
 	nodeSet.Create(1);
 	noiseNode = nodeSet.Get(1);
-	wifiPhy.Set("TxPowerStart", DoubleValue(-25));
-	wifiPhy.Set("TxPowerEnd", DoubleValue(-25));
+	wifiPhy.Set("TxPowerStart", DoubleValue(-90));
+	wifiPhy.Set("TxPowerEnd", DoubleValue(-90));
 	auto noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
 	internet.SetIpv4StackInstall(true);
 	internet.SetIpv6StackInstall(false);
@@ -156,7 +162,7 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	}
 	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
 														"Mode", StringValue("Time"), 
-														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=5]"), 
+														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
 														"Time", TimeValue(Seconds(2)),
 														"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
 														"Bounds", StringValue("0|5|0|5"));
@@ -275,7 +281,8 @@ float SimulationEnvironment::GetReward()
 {
 	auto points = score, sentCount = sent, recvCount = recv;
 	score = 0; sent = 0; recv = 0;
-	float ret;
+	float ret = 0.00025 * recv;
+	std::cout << "Getting reward:\n\tFlowPoints:" << points << "\n\tArrival Fraction: " << (sentCount > 0 ? (-5 * (1 - (1.0 * recvCount)/sentCount)) : 1010101010101010ULL) << std::endl;
 	// Score member variable tracks completed & cancelled flow rewards, so we only adjust here 
 	// Based on no active flows and on receive fraction.
 	if (this->sendApplication->getActiveCount() != 0)
@@ -290,6 +297,7 @@ float SimulationEnvironment::GetReward()
 		// However, extra punishment from cancelled flows should be incurred.
 		ret = points - 5;
 	}
+	std::cout << "\tTotal: " << ret << std::endl;
 	removeCompleted(recvPacketMap, sentPacketMap, completedFlows);
 	if (ret > 200000)
 		throw std::runtime_error("That's not supposed to happen.");
