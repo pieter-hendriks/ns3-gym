@@ -78,7 +78,7 @@ SimulationEnvironment::SimulationEnvironment(double inter) : interval(inter), ne
 void SimulationEnvironment::AddCompletedFlow(unsigned id, unsigned s)
 {
 	static unsigned good = 0, bad = 0, ugly = 0;
-	std::cout << "Adding completed flow: " << id << std::endl;
+	//std::cout << "Adding completed flow: " << id << std::endl;
 	completedFlows.push_back(id);
 	if (static_cast<double>(recvPacketMap.at(id)) / static_cast<double>(sentPacketMap.at(id)) > 1) 
 		throw std::runtime_error("U fucking wot");
@@ -103,7 +103,7 @@ void SimulationEnvironment::AddCompletedFlow(unsigned id, unsigned s)
 		score -= s * 5;
 		++ugly;
 	}
-	std::cout << "Complete/cancel score currently = " << score << std::endl;
+	//std::cout << "Complete/cancel score currently = " << score << std::endl;
 }
 
 void SimulationEnvironment::AddFlowId(unsigned id)
@@ -230,8 +230,7 @@ void SimulationEnvironment::CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDev
 
 void SimulationEnvironment::StateRead()
 {
-	static unsigned progress = 0u;
-	std::cout << "Step " << progress++ << std::endl;
+	//std::cout << "Step " << progress++ << std::endl;
 	//std::cout << "Stateread!" << std::endl;
 	Simulator::Schedule(Time::FromDouble(interval, Time::S), &SimulationEnvironment::StateRead, this);
 	Notify();

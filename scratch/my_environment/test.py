@@ -62,12 +62,14 @@ parser.add_argument('--eval',
 										default=0,
 										help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
 parser.add_argument('--save_weights', type=int, default=0, help='Set to 1 to save weights to file.')
+parser.add_argument('--load_weights', type=int, default=1, help='Set to 0 to disable weight loading.')
 
 args = parser.parse_args()
 startSim = bool(args.start)
 iterationNum = int(args.iterations)
 runEvalOnly = bool(args.eval)
 save_weights = bool(args.save_weights)
+load_weights = bool(args.load_weights)
 port = int(args.port)
 simTime = 600 # seconds
 stepTime = 5 # seconds
@@ -100,9 +102,6 @@ try:
 	action_input = Input(shape=(nb_actions,), name='action_input')
 	actor = Sequential()
 	actor = Flatten()(observation_input)
-	actor = Dense(64, activation='relu')(actor)
-	actor = Dense(48, activation='relu')(actor)
-	actor = Dense(32, activation='relu')(actor)
 	actor = Dense(16, activation='relu')(actor)
 	actor = Dense(nb_actions, activation='linear')(actor)
 
@@ -112,24 +111,20 @@ try:
 	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=50, target_model_update=1e-2, policy=policy, processor=MyProcessor())
 	agent.compile(Adam(lr=5e-3), metrics=['mae'])
 
-
-	# agent = DQNAgent(model, memory, enable_double_dqn=True, enable_dueling_network=True, dueling_type='avg', nb_actions=nb_actions, model=model, processor=MyProcessor, nb_steps_warmup=250)
-
-	#optimizer = Adam(lr=.002, clipnorm=1.)
-	#optimizer._name = 'Adam'
-	#agent.compile(optimizer, metrics=['mae'])
+	if args.load_weights:
+		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
 		agent.fit(env, nb_steps=5000, visualize=False, verbose=2, nb_max_episode_steps=500)
 		#dqn.fit(env, nb_steps = 5000, visualize=False, verbose=2, nb_max_episode_steps=500)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:
-			agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
+			agent.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
 		env.reset()
 		agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
 	else:
-		agent.load_weights('ddpg_{}_weights.h5f'.format(ENV_NAME))
+		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 		agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
 except KeyboardInterrupt:
 	print("Ctrl-C -> Exit")

@@ -1,2 +1,2 @@
-model_checkpoint_path: "ddpg_MyGymEnv_weights_critic.h5f"
-all_model_checkpoint_paths: "ddpg_MyGymEnv_weights_critic.h5f"
+model_checkpoint_path: "ddpg_MyGymEnv_weights.h5f"
+all_model_checkpoint_paths: "ddpg_MyGymEnv_weights.h5f"
