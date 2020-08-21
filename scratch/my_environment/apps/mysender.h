@@ -14,9 +14,9 @@ class MySender : public Sender
 	public:
 		//TypeId GetTypeId (void);
 		MySender() = delete;
-		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD);
+		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD, unsigned flowGoal);
 		virtual ~MySender();
-		void SetActiveFlows(unsigned newFlowCount);
+		void incrementActiveFlows(int32_t flowIncrement);
 		void Send(const Flow& flow);
 
 		unsigned getActiveCount() const;
@@ -32,9 +32,10 @@ class MySender : public Sender
 		unsigned flowsToRecreate;
 		FlowSpec flowspec;
 		ns3::Ptr<SimulationEnvironment> env;
-		unsigned currentFlowGoal;
+		int currentFlowGoal;
 		std::default_random_engine generator;
 		std::unique_ptr<std::normal_distribution<double>> packetSizeDist;
+
 
 };
 #endif

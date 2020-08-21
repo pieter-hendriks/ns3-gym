@@ -44,6 +44,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
+#include <cstdlib>
 
 #include "../apps/mysender.h"
 #include "../apps/myreceiver.h"
@@ -70,14 +71,14 @@ TypeId SimulationEnvironment::GetTypeId()
 	return tid;
 }
 
-SimulationEnvironment::SimulationEnvironment(double inter) : interval(inter), nextFlowId(0), score(0), sent(0), recv(0), sendApplication(nullptr), out("scratch/my_environment/actions.log")
+SimulationEnvironment::SimulationEnvironment(double inter) : interval(inter), nextFlowId(0), score(0), sent(0), recv(0), sendApplication(nullptr)
 {
 	
 }
 void SimulationEnvironment::AddCompletedFlow(unsigned id, unsigned s)
 {
 	static unsigned good = 0, bad = 0, ugly = 0;
-	//std::cout << "Adding completed flow: " << id << std::endl;
+	std::cout << "Adding completed flow: " << id << std::endl;
 	completedFlows.push_back(id);
 	if (static_cast<double>(recvPacketMap.at(id)) / static_cast<double>(sentPacketMap.at(id)) > 1) 
 		throw std::runtime_error("U fucking wot");
@@ -102,7 +103,7 @@ void SimulationEnvironment::AddCompletedFlow(unsigned id, unsigned s)
 		score -= s * 5;
 		++ugly;
 	}
-	//std::cout << "Totals:\nThe " << good << ", the " << bad << " and the " << ugly << std::endl;
+	std::cout << "Complete/cancel score currently = " << score << std::endl;
 }
 
 void SimulationEnvironment::AddFlowId(unsigned id)
@@ -218,10 +219,10 @@ void SimulationEnvironment::CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDev
 		recvAddresses.push_back(nodes.Get(i)->GetObject<ns3::Ipv4>()->GetAddress(1,0).GetLocal());
 		receivers.back()->SetStartTime(ns3::Time::FromInteger(100, ns3::Time::Unit::MS));
 	}
-	this->sendApplication = CreateObject<MySender>(ns3::Ptr<SimulationEnvironment>(this), recvAddresses, AP, PACKET_SIZE_MEAN, PACKET_SIZE_SD);
+	this->sendApplication = CreateObject<MySender>(ns3::Ptr<SimulationEnvironment>(this), recvAddresses, AP, PACKET_SIZE_MEAN, PACKET_SIZE_SD, static_cast<unsigned>(std::rand() % 120 + 5));
 	AP->AddApplication(this->sendApplication);
 	this->sendApplication->SetStartTime(ns3::Time::FromInteger(750, ns3::Time::Unit::MS));
-
+	
 	auto noiseApp = CreateObject<MyNoiseMachine>(noiseDevice);
 	noiseNode->AddApplication(noiseApp);
 	noiseApp->SetStartTime(ns3::Time::FromInteger(150, ns3::Time::Unit::MS));
@@ -248,17 +249,17 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
 	//std::cout << "GetActionSpace" << std::endl;
 	// Single-digit action (# flows to have open in the next step)
 	// We can't do limits<unsigned>::max() because discretespace takes integer parameter, would wrap around to negative.
-	static Ptr<OpenGymDiscreteSpace> space = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<int>::max());
+	static Ptr<OpenGymDiscreteSpace> space = CreateObject<OpenGymDiscreteSpace>(65);
 	return space;
 }
 bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 {
-	auto flowCount = static_cast<int>(DynamicCast<OpenGymDiscreteContainer>(action)->GetValue());
+	auto flowInc = static_cast<int>(DynamicCast<OpenGymDiscreteContainer>(action)->GetValue());
+	std::cout << "Executing action (" << flowInc << "): Old count = " << this->sendApplication->getActiveCount();
 	//std::cout << "Executing action = " << flowCount << std::endl;
-	out << flowCount << std::endl;
-	NS_ASSERT(flowCount >= 0);
-	this->sendApplication->SetActiveFlows(flowCount);
 	this->handleCancelledFlows();
+	this->sendApplication->incrementActiveFlows(flowInc);
+	std::cout << ", new count = " <<  this->sendApplication->getActiveCount() << std::endl;
 	//std::cout << "Returning after action." << std::endl;
 	return true;
 }
@@ -267,20 +268,24 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 {
 	//std::cout << "GetObservationSpace" << std::endl;
 	// Active flow count, amount performing well, amount performing acceptably, amount performing badly.
-	static Ptr<OpenGymBoxSpace> space = CreateObject<OpenGymBoxSpace>(0, 1, std::vector<unsigned>{4U,}, TypeNameGet<float>());
+	static Ptr<OpenGymBoxSpace> space = CreateObject<OpenGymBoxSpace>(0, 1, std::vector<unsigned>{5U,}, TypeNameGet<float>());
 	return space;
 }
 Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 {
+	std::cout << "Getting observation; currently active flows = " << this->sendApplication->getActiveCount() << std::endl;
 	//std::cout << "Getting Observation!" <<std::endl;
 	// Active flow count, amount performing well/acceptable/badly
   // std::cout << "getting observation" << std::endl;
-	Ptr<OpenGymBoxContainer<float>> observation = CreateObject<OpenGymBoxContainer<float>>(std::vector<unsigned>(4));
+	Ptr<OpenGymBoxContainer<float>> observation = CreateObject<OpenGymBoxContainer<float>>(std::vector<unsigned>(5));
 	if (sent != 0) observation->AddValue(static_cast<float>(recv)/sent);
 	else observation->AddValue(0);
 	observation->AddValue(static_cast<float>(sent));
 	observation->AddValue(static_cast<float>(sentSize));
 	observation->AddValue(static_cast<float>(this->sendApplication->getActiveCount()));
+	if (this->sendApplication->getActiveCount() != 0)
+		observation->AddValue(static_cast<float>(0)); // Add indicator value when doing nothing, should allow for easier re-starts
+	else observation->AddValue(static_cast<float>(10)); // and faster learning
 	// std::cout << "End observationGet" << std::endl;
 	return observation;
 }
@@ -332,7 +337,8 @@ float SimulationEnvironment::GetReward()
 	{
 		// For activeCount 0, we can't have bonus from completed flows
 		// However, extra punishment from cancelled flows should be incurred.
-		ret = points - 50.9999980927;
+		// in theory, probably doesn't actually matter since this is just a sentinel 'do-not-do-this' value
+		ret = points - 100000;
 	}
 	//std::cout << "\tTotal: " << ret << std::endl;
 	removeCompleted(recvPacketMap, sentPacketMap, completedFlows);

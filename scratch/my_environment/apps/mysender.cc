@@ -15,6 +15,9 @@
 #include <cmath>
 #include <ctime>
 #include <iomanip>
+#include <cstdlib>
+#include <algorithm> 
+
 NS_LOG_COMPONENT_DEFINE("MySender");
 
 #define MAX_PACKET_SIZE 1500U
@@ -24,13 +27,15 @@ NS_LOG_COMPONENT_DEFINE("MySender");
 // 	static TypeId tid = TypeId("MySender").SetParent<Sender>().AddConstructor<MySender>();
 // 	return tid;
 // };
-MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD) 
+MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD, unsigned flowGoal) 
 : active(false), receivers(std::move(addresses)), currentReceiverIndex(0), flowList(), flowsToRecreate(0), flowspec(readFlowSpec("scratch/my_environment/input/flow.json")),
- env(std::move(ptr)), currentFlowGoal(0), generator(std::time(nullptr)), packetSizeDist(std::make_unique<std::normal_distribution<>>(pkSzMean, pkSzSD))
+ env(std::move(ptr)), currentFlowGoal(flowGoal), generator(std::time(nullptr)), packetSizeDist(std::make_unique<std::normal_distribution<>>(pkSzMean, pkSzSD))
 	
 { 
 	this->m_node = node;
 	this->m_pktSize = 576; 
+	while (static_cast<unsigned>(currentFlowGoal) > flowList.size())
+		createFlow();
 }
 MySender::~MySender() 
 {
@@ -47,37 +52,31 @@ void MySender::createFlow()
 	//ns3::Simulator::ScheduleNow(&MySender::Send, this, addedFlow);
 	env->AddFlowId(addedFlow.getId());
 }
-void MySender::SetActiveFlows(unsigned newFlowCount)
+void MySender::incrementActiveFlows(int32_t flowIncrement)
 {
 	// We punish only for decrease in active flows. Not allowing flows to be recreated is not an issue.
-	currentFlowGoal = newFlowCount;
-	auto flowCount = flowList.size();
-	if (flowCount < newFlowCount)
-	{
-		for (unsigned i = 0; i < newFlowCount - flowCount; ++i)
-		{
-			// Add flows to the back of the list.
-			this->createFlow();
-		}
-	}
-	else if (flowCount > newFlowCount)
+	currentFlowGoal = std::max(0, flowIncrement + currentFlowGoal);
+	while (flowList.size() < static_cast<unsigned>(currentFlowGoal))
+			this->createFlow();	
+	// if before the while would be redundant
+	// else ->
+	if (flowList.size() > static_cast<unsigned>(currentFlowGoal))
 	{
 		// Flows are started in sequence, we can always cancel the most recently created ones for optimal completion.
-		auto startIt = flowList.begin() + newFlowCount; 
+		auto startIt = flowList.begin() + currentFlowGoal; 
 
 		std::vector<unsigned> removedFlows;
 		while (startIt != flowList.end())
 		{
-			// Cancel all the removed flows and remove them from the list. 
 			// Record ids to pass on to env
 			removedFlows.push_back(startIt->getId());
 			++startIt;
 		}
+		// Then pass cancelled flows to environment and locally remove them from application.
 		env->HandleFlowCancellation(removedFlows);
-		startIt = flowList.begin() + newFlowCount;
+		startIt = flowList.begin() + currentFlowGoal;
 		flowList.erase(startIt, flowList.end());
 	}
-	// if equal we do nothing
 }
 
 void MySender::Send(const Flow& flow)

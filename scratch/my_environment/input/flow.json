@@ -1,7 +1,7 @@
 {
 	"goal_type": "VOIP",
 	"point_value": 25,
-	"hold_period": 8,
+	"hold_period": 15,
 	"requirements": {
 		"max_latency_s": 0.09,
 		"min_throughput_bps": 196608,

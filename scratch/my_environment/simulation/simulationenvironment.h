@@ -61,7 +61,6 @@ private:
 	ns3::Ptr<MySender> sendApplication;
 	NodeContainer nodes;
 	ns3::Ptr<Node> noiseNode;
-	std::ofstream out;
 };
 
 #endif

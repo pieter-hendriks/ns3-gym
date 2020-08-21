@@ -32,6 +32,7 @@
 #include "ns3/timer.h"
 
 #include <ctime>
+#include <cstdlib>
 
 using namespace ns3;
 
@@ -40,6 +41,9 @@ NS_LOG_COMPONENT_DEFINE ("OpenGym");
 int
 main (int argc, char *argv[])
 {
+	// Seed std::rand
+	std::srand(std::time(nullptr));
+
 	// Parameters of the scenario
 	uint32_t simSeed = 1;
 	double simulationTime = 600;//600; //seconds
