@@ -20,6 +20,7 @@ class MySender : public Sender
 		void Send(const Flow& flow);
 
 		unsigned getActiveCount() const;
+		unsigned getActiveGoal() const;
 
 	private:
 		void HandleFlowCompletion(const Flow& flow);

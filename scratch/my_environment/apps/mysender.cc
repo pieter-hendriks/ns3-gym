@@ -138,3 +138,7 @@ unsigned MySender::getActiveCount() const
 {
 	return flowList.size();
 }
+unsigned MySender::getActiveGoal() const
+{
+	return currentFlowGoal;
+}

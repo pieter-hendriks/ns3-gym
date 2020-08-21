@@ -285,12 +285,17 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	if (this->sendApplication->getActiveCount() != 0)
 		observation->AddValue(static_cast<float>(0)); // Add indicator value when doing nothing, should allow for easier re-starts
 	else observation->AddValue(static_cast<float>(10)); // and faster learning
+	// We lose the game when we drop to zero flows.
+
+
 	// std::cout << "End observationGet" << std::endl;
 	return observation;
 }
 
 bool SimulationEnvironment::GetGameOver()
 {
+	if (this->sendApplication->getActiveGoal())
+		return true;
 	//std::cout << "GGO!" <<std::endl;
 	// Some time frame, probably. Maybe just always false is okay for now.
 	// --> We simply support infinite streams for now, python agent controls episode length.
@@ -325,7 +330,7 @@ float SimulationEnvironment::GetReward()
 	//std::cout << "Getting reward:\n\tFlowPoints:" << points << "\n\tArrival Fraction: " << (sentCount > 0 ? (-5 * (1 - (1.0 * recvCount)/sentCount)) : 1010101010101010ULL) << std::endl;
 	// Score member variable tracks completed & cancelled flow rewards, so we only adjust here 
 	// Based on no active flows and on receive fraction.
-	if (this->sendApplication->getActiveCount() != 0)
+	if (this->sendApplication->getActiveGoal() != 0)
 	{
 		// Total complete + cancelled rewards,
 		// minus 5x (1 - ratio recv/sent)
