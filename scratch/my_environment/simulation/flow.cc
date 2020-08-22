@@ -46,7 +46,7 @@ bool Flow::operator==(const Flow& o) const{
 bool Flow::operator!=(const Flow& o) const {
 	return id != o.id;
 }
-FlowSpec::FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP, double CRVP) 
+FlowSpec::FlowSpec(std::string t, double v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP, double CRVP) 
 : type(std::move(t)), value(v), minThroughput_bps(bps), fullRewardDropPercentage(FRDP), smallRewardDropPercentage(SRDP), smallRewardValuePercentage(SRVP), 
 	badRewardValuePercentage(BRVP), cancelRewardValuePercentage(CRVP), periodDistribution(std::make_unique<std::normal_distribution<double>>(periodMean, periodSD))
 {
@@ -102,7 +102,7 @@ FlowSpec readFlowSpec(const nlohmann::json& JSON)
 	double periodSD = holdTime / 10.0;
 	return FlowSpec {
 		JSON["goal_type"],
-		JSON["point_value"].get<unsigned>(),
+		JSON["point_value"].get<double>(),
 		JSON["requirements"]["min_throughput_bps"].get<double>(),
 		periodMean, periodSD,
 		JSON["requirements"]["full_reward_max_drop"].get<double>(),

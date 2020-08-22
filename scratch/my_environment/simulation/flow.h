@@ -11,14 +11,14 @@
 struct FlowSpec
 {
 	// Contains the spec information for a flow to follow.
-	FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP, double CRVP);
+	FlowSpec(std::string t, double v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP, double CRVP);
 	FlowSpec(const FlowSpec&);
 	FlowSpec& operator=(const FlowSpec&);
 	
 	ns3::Time getPeriod() const;
 	unsigned id;
 	std::string type;
-	uint32_t value;
+	double value;
 	double minThroughput_bps;
 	double fullRewardDropPercentage;
 	double smallRewardDropPercentage;
@@ -44,7 +44,7 @@ class Flow {
 		float getProgress() const;
 		double getThroughput() const;
 		bool isCompleted() const;
-		unsigned getValue() const;
+		double getValue() const;
 		unsigned getId() const;
 		const FlowSpec& getSpec() const;
 

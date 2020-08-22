@@ -1,7 +1,7 @@
 {
 	"QoS": {
 		"goal_type": "QoS",
-		"point_value": 10,
+		"point_value": 1,
 		"hold_period": 15,
 		"requirements": {
 			"min_throughput_bps": 196608,
@@ -14,7 +14,7 @@
 	},
 	"BE": {
 		"goal_type": "BE",
-		"point_value": 1,
+		"point_value": 0.05,
 		"hold_period": 5,
 		"requirements": {
 			"min_throughput_bps": 65536,
