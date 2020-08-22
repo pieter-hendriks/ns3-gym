@@ -22,7 +22,7 @@ class MySender : public Sender
 		unsigned getActiveCount(unsigned index) const;
 		unsigned getActiveGoal(unsigned index) const;
 
-		void scheduleFlowRecreation() const;
+		void scheduleFlowRecreation();
 	private:
 		void HandleFlowCompletion(const Flow& flow);
 		void createFlow(unsigned index);

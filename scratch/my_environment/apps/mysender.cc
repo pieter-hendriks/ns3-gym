@@ -151,7 +151,7 @@ unsigned MySender::getActiveGoal(unsigned index) const
 {
 	return currentFlowGoal[index];
 }
-void MySender::scheduleFlowRecreation() const
+void MySender::scheduleFlowRecreation()
 {
 	for (auto i = 0u; i < currentFlowGoal.size(); ++i)
 	{
