@@ -251,11 +251,8 @@ void SimulationEnvironment::StateRead()
 
 void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& count)
 {
-	if (!cancelledFlows.empty()) 
-		throw std::runtime_error("Expected empty cancelled flows vector.");
-	cancelledFlows = std::move(count);
+	cancelledFlows.insert(cancelledFlows.end(), std::make_move_iterator(count.begin()), std::make_move_iterator(count.end()));
 }
-
 Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
 {
 	Ptr<OpenGymTupleSpace> space = CreateObject<OpenGymTupleSpace>();
