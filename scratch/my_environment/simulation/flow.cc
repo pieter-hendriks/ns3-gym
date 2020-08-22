@@ -34,7 +34,7 @@ double Flow::getThroughput() const {
 	return spec->minThroughput_bps;
 }
 
-unsigned Flow::getValue() const {
+double Flow::getValue() const {
 	return spec->value;
 }
 unsigned Flow::getId() const {
