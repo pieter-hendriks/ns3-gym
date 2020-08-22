@@ -11,7 +11,7 @@
 struct FlowSpec
 {
 	// Contains the spec information for a flow to follow.
-	FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP);
+	FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP, double CRVP);
 	FlowSpec(const FlowSpec&);
 	FlowSpec& operator=(const FlowSpec&);
 	
@@ -24,6 +24,7 @@ struct FlowSpec
 	double smallRewardDropPercentage;
 	double smallRewardValuePercentage;
 	double badRewardValuePercentage;
+	double cancelRewardValuePercentage;
 	
 	bool operator==(const FlowSpec& o) const;
 	bool operator!=(const FlowSpec& o) const;

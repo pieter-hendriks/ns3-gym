@@ -251,7 +251,7 @@ void SimulationEnvironment::StateRead()
 
 void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& indices, const FlowSpec& spec)
 {
-	score[spec.id] += spec.value * spec.badRewardValuePercentage * indices.size();
+	score[spec.id] += spec.value * spec.cancelRewardValuePercentage * indices.size();
 	std::cout << "Score[" << spec.id << "] += " << spec.value << " * " << spec.badRewardValuePercentage << " * " << indices.size() << "(" << spec.value * spec.badRewardValuePercentage * indices.size() << ")";
 	cancelledFlows.insert(cancelledFlows.end(), std::make_move_iterator(indices.begin()), std::make_move_iterator(indices.end()));
 }
@@ -268,7 +268,7 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 	auto actionOne = DynamicCast<OpenGymDiscreteContainer>(space->Get(0));
 	auto actionTwo = DynamicCast<OpenGymDiscreteContainer>(space->Get(1));
 	int valueOne = actionOne->GetValue(), valueTwo = actionTwo->GetValue();
-	
+
 	this->handleCancelledFlows();
 
 	std::cout << "Executing action (" << valueOne << ", " << valueTwo << "): Old count = " << "(" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << ")";

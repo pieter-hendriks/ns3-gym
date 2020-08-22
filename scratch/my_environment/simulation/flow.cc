@@ -46,9 +46,9 @@ bool Flow::operator==(const Flow& o) const{
 bool Flow::operator!=(const Flow& o) const {
 	return id != o.id;
 }
-FlowSpec::FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP) 
+FlowSpec::FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP, double CRVP) 
 : type(std::move(t)), value(v), minThroughput_bps(bps), fullRewardDropPercentage(FRDP), smallRewardDropPercentage(SRDP), smallRewardValuePercentage(SRVP), 
-	badRewardValuePercentage(BRVP), periodDistribution(std::make_unique<std::normal_distribution<double>>(periodMean, periodSD))
+	badRewardValuePercentage(BRVP), cancelRewardValuePercentage(CRVP), periodDistribution(std::make_unique<std::normal_distribution<double>>(periodMean, periodSD))
 {
 	static unsigned idCounter = 0;
 	id = idCounter++;
@@ -61,7 +61,8 @@ FlowSpec::FlowSpec(std::string t, uint32_t v, double bps, double periodMean, dou
 FlowSpec::FlowSpec(const FlowSpec& o)
 : id(o.id), type(o.type), value(o.value), minThroughput_bps(o.minThroughput_bps), fullRewardDropPercentage(o.fullRewardDropPercentage),
  smallRewardDropPercentage(o.smallRewardDropPercentage), smallRewardValuePercentage(o.smallRewardValuePercentage),
- badRewardValuePercentage(o.badRewardValuePercentage),  periodDistribution(std::make_unique<std::normal_distribution<double>>(*o.periodDistribution))  {}
+ badRewardValuePercentage(o.badRewardValuePercentage), cancelRewardValuePercentage(o.cancelRewardValuePercentage),
+ periodDistribution(std::make_unique<std::normal_distribution<double>>(*o.periodDistribution))  {}
 
 FlowSpec& FlowSpec::operator=(const FlowSpec& o)
 {
@@ -107,7 +108,8 @@ FlowSpec readFlowSpec(const nlohmann::json& JSON)
 		JSON["requirements"]["full_reward_max_drop"].get<double>(),
 		JSON["requirements"]["small_reward_max_drop"].get<double>(),
 		JSON["requirements"]["small_reward_percentage"].get<double>(),
-		JSON["requirements"]["bad_result_percentage"].get<double>()
+		JSON["requirements"]["bad_result_percentage"].get<double>(),
+		JSON["requirements"]["cancel_result_percentage"].get<double>()
 	};
 }
 bool FlowSpec::operator==(const FlowSpec& o) const 
