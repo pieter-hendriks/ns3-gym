@@ -1,0 +1,2 @@
+#!/bin/bash
+./rerun inf & pid1="$!" ; ./test "$@" ; kill $pid1
