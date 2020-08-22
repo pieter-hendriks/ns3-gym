@@ -80,7 +80,7 @@ main (int argc, char *argv[])
 	Time::SetResolution(ns3::Time::Unit::US);
 	//Simulator::ScheduleNow(check);
 	//Simulator::ScheduleNow(&SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
-	Simulator::Schedule(ns3::Time::FromInteger(100, ns3::Time::Unit::MS), &SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
+	Simulator::Schedule(ns3::Time::FromInteger(20, ns3::Time::Unit::MS), &SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
 
 	Simulator::Stop (Seconds (simulationTime));
 	Simulator::Run ();

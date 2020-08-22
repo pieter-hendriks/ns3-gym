@@ -14,26 +14,24 @@ class MySender : public Sender
 	public:
 		//TypeId GetTypeId (void);
 		MySender() = delete;
-		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD, unsigned flowGoal);
+		MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Address>& addresses, ns3::Ptr<Node> node, double pkSzMean, double pkSzSD, std::vector<int> flowGoal);
 		virtual ~MySender();
-		void incrementActiveFlows(int32_t flowIncrement);
+		void incrementActiveFlows(unsigned index, int32_t flowIncrement);
 		void Send(const Flow& flow);
 
-		unsigned getActiveCount() const;
-		unsigned getActiveGoal() const;
+		unsigned getActiveCount(unsigned index) const;
+		unsigned getActiveGoal(unsigned index) const;
 
 	private:
 		void HandleFlowCompletion(const Flow& flow);
-		void createFlow();
-		void scheduleCreateFlow();
+		void createFlow(unsigned index);
 		bool active;
 		std::vector<Ipv4Address> receivers;
 		unsigned currentReceiverIndex;
-		std::deque<Flow> flowList;
-		unsigned flowsToRecreate;
-		FlowSpec flowspec;
+		std::vector<FlowSpec> flowSpecs;
+		std::vector<std::deque<Flow>> flowList;
 		ns3::Ptr<SimulationEnvironment> env;
-		int currentFlowGoal;
+		std::vector<int> currentFlowGoal;
 		std::default_random_engine generator;
 		std::unique_ptr<std::normal_distribution<double>> packetSizeDist;
 

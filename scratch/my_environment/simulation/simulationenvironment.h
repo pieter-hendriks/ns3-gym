@@ -38,14 +38,14 @@ friend class TypeId;
 
 	void StateRead();
 	
-	void AddCompletedFlow(unsigned id, unsigned s);
+	void AddCompletedFlow(unsigned id, const FlowSpec& flowSpec);
 	void HandleFlowCancellation(std::vector<unsigned>& flows);
 
 	// AddFlowId adds the flow for env to keep track of, 
 	void AddFlowId(unsigned id);
 	// These two increment the counters.
-	void AddSentPacket(unsigned flowId, unsigned packetSize);
-	void AddReceivedPacket(unsigned flowId);
+	void AddSentPacket(unsigned flowId, unsigned packetSize, const FlowSpec& spec);
+	void AddReceivedPacket(unsigned flowId, const FlowSpec& spec);
 
 	void setupDefaultEnvironment();
 private:
@@ -54,7 +54,7 @@ private:
 	void handleCancelledFlows();
 	double interval;
 	uint64_t nextFlowId;
-	int64_t score, sent, recv, sentSize;
+	std::vector<int64_t> score, sent, recv, sentSize;
 	std::map<unsigned, unsigned> sentPacketMap;
 	std::map<unsigned, unsigned> recvPacketMap;
 	std::vector<unsigned> completedFlows, cancelledFlows;

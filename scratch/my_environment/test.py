@@ -15,6 +15,7 @@ from rl.core import Processor
 import ctypes
 import random
 import tensorflow as tf
+import itertools
 
 __author__ = "Piotr Gawlowicz"
 __copyright__ = "Copyright (c) 2018, Technische Universität Berlin"
@@ -23,26 +24,23 @@ __email__ = "gawlowicz@tkn.tu-berlin.de"
 
 
 ENV_NAME = "MyGymEnv"
-
 class MyProcessor(Processor):
-	def __init__(self):
+	def __init__(self, n):
 		super().__init__()
-
+		self.n = n
 	def process_action(self, action):
-		print(f"Unprocessed action = {action}")
-		# Action is change in allowed flowCount. 
-		action = abs(int(action)) % 65 # This should be plenty for the stream type we're doing. Each stream is currently 192 kbps.
-		action -= 32
-
-		# action = ctypes.c_int32(action).value
-		print(f"Acting: {action}")
-		return action
+		assert action >= 0 and action <= self.n * self.n and type(action) == int
+		action1 = action // self.n
+		action2 = action % self.n
+		return [action1 - (self.n//2), action2 - (self.n//2)]
 	
 	def process_observation(self, obs):
-		if obs:
-			obs.append(25)
-			return obs
-		return [0, 0, 0, 0, 10, 25]
+		if not obs:
+			obs = [0, 0, 0, 1, 0, 0, 0, 1, 1]
+		else:
+			fn = lambda x: x if type(x) in [int, float] else x[0]
+			obs = [fn(x) for x in obs]
+		return obs
 
 parser = argparse.ArgumentParser(description='Start simulation script on/off')
 parser.add_argument('--start',
@@ -61,8 +59,10 @@ parser.add_argument('--eval',
 										type=int,
 										default=0,
 										help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
+parser.add_argument('--no_test', type=int, default=0, help='Set to 1 to disable testing')
 parser.add_argument('--save_weights', type=int, default=0, help='Set to 1 to save weights to file.')
 parser.add_argument('--load_weights', type=int, default=1, help='Set to 0 to disable weight loading.')
+
 
 args = parser.parse_args()
 startSim = bool(args.start)
@@ -71,6 +71,8 @@ runEvalOnly = bool(args.eval)
 save_weights = bool(args.save_weights)
 load_weights = bool(args.load_weights)
 port = int(args.port)
+disable_test = bool(args.no_test)
+assert not (disable_test and runEvalOnly)
 simTime = 600 # seconds
 stepTime = 5 # seconds
 seed = random.randint(0, 150000)
@@ -87,42 +89,42 @@ try:
 	env.reset()
 	ob_space = env.observation_space
 	ac_space = env.action_space
-
-	nb_actions = ac_space.n # env.action_space.shape[0]
+	assert ac_space.spaces[0].n == ac_space.spaces[1].n
+	nb_actions = ac_space.spaces[0].n ** 2
 
 	stepIdx = 0
 	currIt = 0
-	# We get a single dimensional observation -
-	# But we add a single item to it (constant term) to avoid stuck-at-zero problem.
-	obs_shape = list(env.observation_space.shape)
-	obs_shape[0] += 1
-	obs_shape = tuple(obs_shape)
-	assert(len(obs_shape) == 1) # If this isn't true anymore, logic needs to be changed.
-	observation_input = Input(shape=(1,) + obs_shape, name='observation_input')
+
+	ob_shape_dim = len(ob_space.spaces)
+	observation_input = Input(shape=(1,ob_shape_dim), name='observation_input')
+
 	action_input = Input(shape=(nb_actions,), name='action_input')
 	actor = Sequential()
 	actor = Flatten()(observation_input)
 	actor = Dense(16, activation='relu')(actor)
+	actor = Dense(32, activation='relu')(actor)
+	actor = Dense(16, activation='relu')(actor)
+	actor = Dense(32, activation='relu')(actor)
 	actor = Dense(nb_actions, activation='linear')(actor)
 
 	model = Model(inputs=observation_input, outputs=actor)
 	memory = SequentialMemory(limit=50000, window_length=1)
-	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.1, value_test=0.001, nb_steps=8000)
-	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=50, target_model_update=1e-2, policy=policy, processor=MyProcessor())
-	agent.compile(Adam(lr=5e-3), metrics=['mae'])
+	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.3, value_test=0, nb_steps=6000)
+	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=100, target_model_update=1e-2, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
+	agent.compile(Adam(lr=1e-2), metrics=['mae'])
 
 	if args.load_weights:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=5000, visualize=False, verbose=2, nb_max_episode_steps=500)
-		#dqn.fit(env, nb_steps = 5000, visualize=False, verbose=2, nb_max_episode_steps=500)
+		agent.fit(env, nb_steps=10000, visualize=False, verbose=2, nb_max_episode_steps=10)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:
 			agent.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
 		env.reset()
-		agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
+		if not disable_test:
+			agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
 	else:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 		agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)

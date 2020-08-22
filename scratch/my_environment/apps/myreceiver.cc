@@ -58,7 +58,7 @@ void MyReceiver::Receive (Ptr<Socket> socket)
 		}
 		if (packet->FindFirstMatchingByteTag (flowtag))
 		{
-			env->AddReceivedPacket(flowtag.getId());
+			env->AddReceivedPacket(flowtag.getId(), flowtag.getFlowSpec());
 		}
 		else throw std::runtime_error("Should be impossible, since sender is adding tag.");
 

@@ -11,26 +11,34 @@
 struct FlowSpec
 {
 	// Contains the spec information for a flow to follow.
-	FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD);
+	FlowSpec(std::string t, uint32_t v, double bps, double periodMean, double periodSD, double FRDP, double SRDP, double SRVP, double BRVP);
 	FlowSpec(const FlowSpec&);
 	FlowSpec& operator=(const FlowSpec&);
+	
+	ns3::Time getPeriod() const;
+	unsigned id;
 	std::string type;
 	uint32_t value;
-	ns3::Time getPeriod() const;
-	// double maxLatency_s;
 	double minThroughput_bps;
-	// double maxJitter_s;
-	// double maxLoss_pct;
+	double fullRewardDropPercentage;
+	double smallRewardDropPercentage;
+	double smallRewardValuePercentage;
+	double badRewardValuePercentage;
+	
+	bool operator==(const FlowSpec& o) const;
+	bool operator!=(const FlowSpec& o) const;
+
 	private:
 	std::unique_ptr<std::normal_distribution<double>> periodDistribution;
 	static std::default_random_engine generator;
 
 };
-FlowSpec readFlowSpec(const std::string& file);
+std::vector<FlowSpec> readFlowsInput(const std::string& file);
+FlowSpec readFlowSpec(const nlohmann::json& file);
 
 class Flow {
 	public:
-		Flow(const FlowSpec& spec, unsigned dest);
+		Flow(const FlowSpec* spec, unsigned dest);
 		unsigned getDestination() const;
 		float getProgress() const;
 		double getThroughput() const;
@@ -42,7 +50,8 @@ class Flow {
 		bool operator==(const Flow& o) const;
 		bool operator!=(const Flow& o) const;
 	private:
-		FlowSpec spec; 
+		// Non-owning pointer
+		const FlowSpec* spec; 
 		unsigned id;
 		unsigned destination;
 		ns3::Time period;
