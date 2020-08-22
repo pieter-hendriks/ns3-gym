@@ -1,10 +1,12 @@
 .vscode/
 venv/
-*.h5f
+*.h5f.*
 *.diff
 *.orig
 *.patch
 *.rej
+
+checkpoint
 
 *.o
 *.pyc
