@@ -39,6 +39,9 @@ MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Ad
 		while (static_cast<unsigned>(currentFlowGoal[i]) > flowList[i].size())
 			createFlow(i);
 	}
+	// This application is created only when simulation is ready to start.
+	// So we can just do our schedule here.
+	Simulator::Schedule(ns3::Time::FromInteger(500, ns3::Time::Unit::MS), &MySender::scheduleFlowRecreation, this);
 }
 MySender::~MySender() 
 {
@@ -147,4 +150,16 @@ unsigned MySender::getActiveCount(unsigned index) const
 unsigned MySender::getActiveGoal(unsigned index) const
 {
 	return currentFlowGoal[index];
+}
+void MySender::scheduleFlowRecreation() const
+{
+	for (auto i = 0u; i < currentFlowGoal.size(); ++i)
+	{
+		auto diff = currentFlowGoal[i] - flowList[i].size();
+		for (auto j = 0u; j < diff; ++j)
+		{
+			Simulator::Schedule(ns3::Time::FromInteger(std::rand() % 495 + 3, ns3::Time::Unit::MS), &MySender::createFlow, this, i);
+		}
+	}
+	Simulator::Schedule(ns3::Time::FromInteger(500, ns3::Time::Unit::MS), &MySender::scheduleFlowRecreation, this);
 }

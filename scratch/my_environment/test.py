@@ -31,7 +31,7 @@ class MyProcessor(Processor):
 	def process_action(self, action):
 		action1 = action // self.n
 		action2 = action % self.n
-		if (action < 0 or action > self.n * self.n or type(action) != int):
+		if (action < 0 or action > self.n * self.n):
 			print(action)
 			print(self.n*self.n)
 			print(type(action))
