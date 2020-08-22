@@ -79,7 +79,7 @@ void MySender::incrementActiveFlows(unsigned index, int32_t flowIncrement)
 			++startIt;
 		}
 		// Then pass cancelled flows to environment and locally remove them from application.
-		env->HandleFlowCancellation(removedFlows);
+		env->HandleFlowCancellation(removedFlows, flowList[index].begin()->getSpec());
 		startIt = flowList[index].begin() + currentFlowGoal[index];
 		flowList[index].erase(startIt, flowList[index].end());
 	}

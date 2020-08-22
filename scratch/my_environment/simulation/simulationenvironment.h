@@ -39,7 +39,7 @@ friend class TypeId;
 	void StateRead();
 	
 	void AddCompletedFlow(unsigned id, const FlowSpec& flowSpec);
-	void HandleFlowCancellation(std::vector<unsigned>& flows);
+	void HandleFlowCancellation(std::vector<unsigned>& flows, const FlowSpec& spec);
 
 	// AddFlowId adds the flow for env to keep track of, 
 	void AddFlowId(unsigned id);

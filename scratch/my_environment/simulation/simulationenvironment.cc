@@ -249,8 +249,9 @@ void SimulationEnvironment::StateRead()
 	Notify();
 }	
 
-void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& count)
+void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& count, const FlowSpec& spec)
 {
+	score[spec.id] += spec.value * spec.badRewardValuePercentage * count.size();
 	cancelledFlows.insert(cancelledFlows.end(), std::make_move_iterator(count.begin()), std::make_move_iterator(count.end()));
 }
 Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
@@ -299,7 +300,8 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 
 	auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
 	sentSizeOne->SetValue(sentSize[0]); sentSizeTwo->SetValue(sentSize[1]);
-
+	sentSize[0] = 0; sentSize[1] = 0;
+	
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
 	activeCountOne->SetValue(this->sendApplication->getActiveGoal(0));
 	activeCountTwo->SetValue(this->sendApplication->getActiveGoal(1));
