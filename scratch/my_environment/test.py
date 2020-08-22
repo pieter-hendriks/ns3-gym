@@ -29,9 +29,13 @@ class MyProcessor(Processor):
 		super().__init__()
 		self.n = n
 	def process_action(self, action):
-		assert action >= 0 and action <= self.n * self.n and type(action) == int
 		action1 = action // self.n
 		action2 = action % self.n
+		if (action < 0 or action > self.n * self.n or type(action) != int):
+			print(action)
+			print(self.n*self.n)
+			print(type(action))
+			assert False
 		return [action1 - (self.n//2), action2 - (self.n//2)]
 	
 	def process_observation(self, obs):
