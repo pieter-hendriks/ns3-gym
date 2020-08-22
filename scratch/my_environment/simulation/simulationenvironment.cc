@@ -249,10 +249,11 @@ void SimulationEnvironment::StateRead()
 	Notify();
 }	
 
-void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& count, const FlowSpec& spec)
+void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& indices, const FlowSpec& spec)
 {
-	score[spec.id] += spec.value * spec.badRewardValuePercentage * count.size();
-	cancelledFlows.insert(cancelledFlows.end(), std::make_move_iterator(count.begin()), std::make_move_iterator(count.end()));
+	score[spec.id] += spec.value * spec.badRewardValuePercentage * indices.size();
+	std::cout << "Score[" << spec.id << "] += " << spec.value << " * " << spec.badRewardValuePercentage << " * " << indices.size() << "(" << spec.value * spec.badRewardValuePercentage * indices.size() << ")";
+	cancelledFlows.insert(cancelledFlows.end(), std::make_move_iterator(indices.begin()), std::make_move_iterator(indices.end()));
 }
 Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
 {
@@ -267,11 +268,12 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 	auto actionOne = DynamicCast<OpenGymDiscreteContainer>(space->Get(0));
 	auto actionTwo = DynamicCast<OpenGymDiscreteContainer>(space->Get(1));
 	int valueOne = actionOne->GetValue(), valueTwo = actionTwo->GetValue();
+	
+	this->handleCancelledFlows();
 
 	std::cout << "Executing action (" << valueOne << ", " << valueTwo << "): Old count = " << "(" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << ")";
 	std::cout << "[" << this->sendApplication->getActiveGoal(0) << ", " << this->sendApplication->getActiveGoal(1) << "]";
 	//std::cout << "Executing action = " << flowCount << std::endl;
-	this->handleCancelledFlows();
 	this->sendApplication->incrementActiveFlows(0, valueOne);
 	this->sendApplication->incrementActiveFlows(1, valueTwo);
 	std::cout << ", new count = " <<  "(" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << ")" << std::endl;
@@ -301,7 +303,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
 	sentSizeOne->SetValue(sentSize[0]); sentSizeTwo->SetValue(sentSize[1]);
 	sentSize[0] = 0; sentSize[1] = 0;
-	
+
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
 	activeCountOne->SetValue(this->sendApplication->getActiveGoal(0));
 	activeCountTwo->SetValue(this->sendApplication->getActiveGoal(1));
@@ -370,6 +372,7 @@ float SimulationEnvironment::GetReward()
 		score[i] = 0; sent[i] = 0; recv[i] = 0;
 		ret += points;
 	}
+	std::cout << "Obtained reward = " << ret << std::endl;
 	return ret; 
 
 	// auto points = score, sentCount = sent, recvCount = recv;

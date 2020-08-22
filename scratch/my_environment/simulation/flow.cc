@@ -52,8 +52,16 @@ FlowSpec::FlowSpec(std::string t, uint32_t v, double bps, double periodMean, dou
 {
 	static unsigned idCounter = 0;
 	id = idCounter++;
+	if (this->badRewardValuePercentage < -6 || this->badRewardValuePercentage > 1)
+	{
+		std::cout << "bad init: " << badRewardValuePercentage << std::endl;
+		throw std::runtime_error("U fucking wot mate");
+	}
 };
-FlowSpec::FlowSpec(const FlowSpec& o) : id(o.id), type(o.type), value(o.value), minThroughput_bps(o.minThroughput_bps), periodDistribution(std::make_unique<std::normal_distribution<double>>(*o.periodDistribution))  {}
+FlowSpec::FlowSpec(const FlowSpec& o)
+: id(o.id), type(o.type), value(o.value), minThroughput_bps(o.minThroughput_bps), fullRewardDropPercentage(o.fullRewardDropPercentage),
+ smallRewardDropPercentage(o.smallRewardDropPercentage), smallRewardValuePercentage(o.smallRewardValuePercentage),
+ badRewardValuePercentage(o.badRewardValuePercentage),  periodDistribution(std::make_unique<std::normal_distribution<double>>(*o.periodDistribution))  {}
 
 FlowSpec& FlowSpec::operator=(const FlowSpec& o)
 {
@@ -96,10 +104,10 @@ FlowSpec readFlowSpec(const nlohmann::json& JSON)
 		JSON["point_value"].get<unsigned>(),
 		JSON["requirements"]["min_throughput_bps"].get<double>(),
 		periodMean, periodSD,
-		JSON["requirements"]["full_reward_max_drop"],
-		JSON["requirements"]["small_reward_max_drop"],
-		JSON["requirements"]["small_reward_percentage"],
-		JSON["requirements"]["bad_result_percentage"]
+		JSON["requirements"]["full_reward_max_drop"].get<double>(),
+		JSON["requirements"]["small_reward_max_drop"].get<double>(),
+		JSON["requirements"]["small_reward_percentage"].get<double>(),
+		JSON["requirements"]["bad_result_percentage"].get<double>()
 	};
 }
 bool FlowSpec::operator==(const FlowSpec& o) const 
