@@ -301,7 +301,8 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	}
 
 	auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
-	sentSizeOne->SetValue(sentSize[0]); sentSizeTwo->SetValue(sentSize[1]);
+	sentSizeOne->SetValue(static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5)); // Convert to MiB to lower the value
+	sentSizeTwo->SetValue(static_cast<unsigned>((sentSize[1] / 1024.0 / 1024) + 0.5));
 	sentSize[0] = 0; sentSize[1] = 0;
 
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
@@ -337,11 +338,11 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
 	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
 	
-	auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<int>::max());
-	auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<int>::max());
+	auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(200); // Maximum is some max value, because we won't send limits::max()
+	auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(200); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
 	
-	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<int>::max());
-	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(std::numeric_limits<int>::max());
+	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(1000); // Max value, beyond that we just indicate n. 
+	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(1000); // This is far more than would be productive, so should be plenty.
 	
 	auto zeroIndicatorOne = CreateObject<OpenGymDiscreteSpace>(1);
 	auto zeroIndicatorTwo = CreateObject<OpenGymDiscreteSpace>(1);
