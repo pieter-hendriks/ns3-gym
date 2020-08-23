@@ -2,23 +2,23 @@
 	"QoS": {
 		"goal_type": "QoS",
 		"point_value": 1,
-		"hold_period": 15,
+		"hold_period": 5,
 		"requirements": {
 			"min_throughput_bps": 196608,
-			"full_reward_max_drop": 0.01,
+			"full_reward_max_drop": 0.02,
 			"small_reward_max_drop": 0.1,
 			"small_reward_percentage": 0,
 			"bad_result_percentage": -2,
-			"cancel_result_percentage": -0.5
+			"cancel_result_percentage": -0.25
 		}
 	},
 	"BE": {
 		"goal_type": "BE",
-		"point_value": 0.05,
+		"point_value": 0.1,
 		"hold_period": 5,
 		"requirements": {
 			"min_throughput_bps": 65536,
-			"full_reward_max_drop": 0.03,
+			"full_reward_max_drop": 0.05,
 			"small_reward_max_drop": 0.25,
 			"small_reward_percentage": 0.5,
 			"bad_result_percentage": 0,

@@ -64,7 +64,7 @@ parser.add_argument('--eval',
 										default=0,
 										help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
 parser.add_argument('--no_test', type=int, default=0, help='Set to 1 to disable testing')
-parser.add_argument('--save_weights', type=int, default=0, help='Set to 1 to save weights to file.')
+parser.add_argument('--save_weights', type=int, default=1, help='Set to 1 to save weights to file.')
 parser.add_argument('--load_weights', type=int, default=1, help='Set to 0 to disable weight loading.')
 
 

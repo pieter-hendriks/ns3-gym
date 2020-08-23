@@ -44,6 +44,7 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
+#include <algorithm>
 #include <cstdlib>
 
 #include "../apps/mysender.h"
@@ -58,6 +59,10 @@
 // (Fragmentation breaks packet counter, so have to avoid it)
 #define PACKET_SIZE_MEAN 1350
 #define PACKET_SIZE_SD 75
+
+// output limits
+#define ACTIVE_COUNT_MAX 250u
+#define OUTPUT_SIZE_MAX 100u
 
 
 using namespace ns3;
@@ -252,7 +257,6 @@ void SimulationEnvironment::StateRead()
 void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& indices, const FlowSpec& spec)
 {
 	score[spec.id] += spec.value * spec.cancelRewardValuePercentage * indices.size();
-	std::cout << "Score[" << spec.id << "] += " << spec.value << " * " << spec.badRewardValuePercentage << " * " << indices.size() << "(" << spec.value * spec.badRewardValuePercentage * indices.size() << ")";
 	cancelledFlows.insert(cancelledFlows.end(), std::make_move_iterator(indices.begin()), std::make_move_iterator(indices.end()));
 }
 Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
@@ -271,43 +275,39 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 
 	this->handleCancelledFlows();
 
-	std::cout << "Executing action (" << valueOne << ", " << valueTwo << "): Old count = " << "(" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << ")";
-	std::cout << "[" << this->sendApplication->getActiveGoal(0) << ", " << this->sendApplication->getActiveGoal(1) << "]";
 	//std::cout << "Executing action = " << flowCount << std::endl;
 	this->sendApplication->incrementActiveFlows(0, valueOne);
 	this->sendApplication->incrementActiveFlows(1, valueTwo);
-	std::cout << ", new count = " <<  "(" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << ")" << std::endl;
 	//std::cout << "Returning after action." << std::endl;
 	return true;
 }
 
 Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 {
-	std::cout << "Getting observation; currently active flows = " << "(" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << ")" << std::endl;
 	auto observation = CreateObject<OpenGymTupleContainer>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
 	auto fracContainerOne = CreateObject<OpenGymBoxContainer<float>>(shape), fracContainerTwo = CreateObject<OpenGymBoxContainer<float>>(shape);
 	if (sent[0] > 0)
-		fracContainerOne->AddValue(static_cast<float>(recv[0])/sent[0]);
+		fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
 	else 
 	{
 		fracContainerOne->AddValue(1); // 1 for consistency: All sent packets have arrived.
 	}
 	if (sent[1] > 0)
-	fracContainerTwo->AddValue(static_cast<float>(recv[1])/sent[1]);
+	fracContainerTwo->AddValue(std::min(1.0f, static_cast<float>(recv[1])/sent[1]));
 	else 
 	{
 		fracContainerTwo->AddValue(1); // 1 for consistency: All sent packets have arrived.
 	}
 
 	auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
-	sentSizeOne->SetValue(static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5)); // Convert to MiB to lower the value
-	sentSizeTwo->SetValue(static_cast<unsigned>((sentSize[1] / 1024.0 / 1024) + 0.5));
+	sentSizeOne->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5))); // Convert to MiB to lower the value
+	sentSizeTwo->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[1] / 1024.0 / 1024) + 0.5)));
 	sentSize[0] = 0; sentSize[1] = 0;
 
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
-	activeCountOne->SetValue(this->sendApplication->getActiveGoal(0));
-	activeCountTwo->SetValue(this->sendApplication->getActiveGoal(1));
+	activeCountOne->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(0)));
+	activeCountTwo->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(1)));
 
 	auto indicatorOne = CreateObject<OpenGymDiscreteContainer>(), indicatorTwo = CreateObject<OpenGymDiscreteContainer>();
 	// Add indicator value when doing nothing, should allow for easier re-starts and faster learning
@@ -372,6 +372,10 @@ float SimulationEnvironment::GetReward()
 		auto points = score[i]; //, sentCount = sent[i], recvCount = recv[i];
 		score[i] = 0; sent[i] = 0; recv[i] = 0;
 		ret += points;
+	}
+	if (this->sendApplication->getActiveGoal(0) == 0 && this->sendApplication->getActiveGoal(1) == 0)
+	{
+		ret -= 20;
 	}
 	std::cout << "Obtained reward = " << ret << std::endl;
 	return ret; 
