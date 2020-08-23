@@ -44,6 +44,7 @@ class MyProcessor(Processor):
 		else:
 			fn = lambda x: x if type(x) in [int, float] else x[0]
 			obs = [fn(x) for x in obs]
+		print (obs)
 		return obs
 
 parser = argparse.ArgumentParser(description='Start simulation script on/off')

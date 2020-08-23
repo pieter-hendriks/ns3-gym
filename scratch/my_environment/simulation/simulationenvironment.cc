@@ -291,13 +291,13 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 		fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
 	else 
 	{
-		fracContainerOne->AddValue(1); // 1 for consistency: All sent packets have arrived.
+		fracContainerOne->AddValue(-1.0f); // 1 for consistency: All sent packets have arrived.
 	}
 	if (sent[1] > 0)
 	fracContainerTwo->AddValue(std::min(1.0f, static_cast<float>(recv[1])/sent[1]));
 	else 
 	{
-		fracContainerTwo->AddValue(1); // 1 for consistency: All sent packets have arrived.
+		fracContainerTwo->AddValue(-1.0f); // 1 for consistency: All sent packets have arrived.
 	}
 
 	auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
@@ -335,14 +335,14 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	auto space = CreateObject<OpenGymTupleSpace>();
 	auto constantValue = CreateObject<OpenGymDiscreteSpace>(1);
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
-	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
+	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
+	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
 	
-	auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(200); // Maximum is some max value, because we won't send limits::max()
-	auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(200); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
+	auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // Maximum is some max value, because we won't send limits::max()
+	auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
 	
-	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(1000); // Max value, beyond that we just indicate n. 
-	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(1000); // This is far more than would be productive, so should be plenty.
+	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // Max value, beyond that we just indicate n. 
+	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // This is far more than would be productive, so should be plenty.
 	
 	auto zeroIndicatorOne = CreateObject<OpenGymDiscreteSpace>(1);
 	auto zeroIndicatorTwo = CreateObject<OpenGymDiscreteSpace>(1);
