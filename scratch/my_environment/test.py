@@ -101,7 +101,7 @@ try:
 	stepIdx = 0
 	currIt = 0
 
-	ob_shape_dim = len(ob_space.spaces)
+	ob_shape_dim = len(ob_space.spaces) + 1
 	observation_input = Input(shape=(1,ob_shape_dim), name='observation_input')
 
 	action_input = Input(shape=(nb_actions,), name='action_input')
