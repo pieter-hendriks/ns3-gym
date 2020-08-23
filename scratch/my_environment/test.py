@@ -40,10 +40,11 @@ class MyProcessor(Processor):
 	
 	def process_observation(self, obs):
 		if not obs:
-			obs = [0, 0, 0, 1, 0, 0, 0, 1, 1]
+			obs = [-1., 0, 0, 1, -1., 0, 0, 1, 1]
 		else:
 			fn = lambda x: x if type(x) in [int, float] else x[0]
 			obs = [fn(x) for x in obs]
+			obs.append(1)
 		print (obs)
 		return obs
 
@@ -138,40 +139,3 @@ except KeyboardInterrupt:
 finally:
 	env.close()
 	print("Done")
-
-
-# OLD AGENT BELOW:
-	# actor = Sequential()
-	# actor.add(Flatten(input_shape=(1,) + obs_shape))
-	# actor.add(Dense(16))
-	# actor.add(Activation('relu'))
-	# actor.add(Dense(8))
-	# actor.add(Activation('relu'))
-	# actor.add(Dense(4))
-	# actor.add(Activation('relu'))
-	# actor.add(Dense(nb_actions)) # Only one output
-	# actor.add(Activation('linear'))
-	# # print(actor.summary())
-	# # print(env.observation_space)
-	# # print(env.observation_space.shape)
-	# # input("Pause point")
-	# observation_input = Input(shape=(1,) + obs_shape, name='observation_input')
-	# action_input = Input(shape=(nb_actions,), name='action_input')
-	# flattened_observation = Flatten()(observation_input)
-	# x = Concatenate()([action_input, flattened_observation])
-	# x = Dense(16)(x)
-	# x = Activation('relu')(x)
-	# x = Dense(8)(x)
-	# x = Activation('relu')(x)
-	# x = Dense(4)(x)
-	# x = Activation('relu')(x)
-	# x = Dense(1)(x)
-	# x = Activation('linear')(x)
-	# critic = Model(inputs=[action_input, observation_input], outputs=x)
-	# # print(critic.summary())
-	
-	# 
-	# random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=1, mu=0., sigma=3)
-	# agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
-	# 									memory=memory, nb_steps_warmup_critic=400, nb_steps_warmup_actor=400,
-	# 									random_process=random_process, gamma=.995, target_model_update=2e-3, processor = MyProcessor())

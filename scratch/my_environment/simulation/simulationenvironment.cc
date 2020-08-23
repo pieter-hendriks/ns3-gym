@@ -320,8 +320,6 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	else indicatorTwo->SetValue(1);
 	observation->Add(fracContainerOne); observation->Add(sentSizeOne); observation->Add(activeCountOne); observation->Add(indicatorOne);
 	observation->Add(fracContainerTwo); observation->Add(sentSizeTwo); observation->Add(activeCountTwo); observation->Add(indicatorTwo);
-	// Add single constant value, useful if e.g. all zeroes.
-	observation->Add(CreateObject<OpenGymDiscreteContainer>(1));
 	// std::cout << "End observationGet" << std::endl;
 	std::cout << "Outputting obs: [" << fracContainerOne->GetValue(0) << ", " << sentSizeOne->GetValue() << ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
 	std::cout << fracContainerTwo->GetValue(0) << ", " << sentSizeTwo->GetValue() << ", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", 1]" << std::endl;
@@ -333,7 +331,6 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	// Not sure if all the duplication is necessary - might be able to just do space, category, fill in cat, then add cat twice. 
 	// But this is always correct. Issues with the other method might be hard to find.
 	auto space = CreateObject<OpenGymTupleSpace>();
-	auto constantValue = CreateObject<OpenGymDiscreteSpace>(1);
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
 	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
 	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
@@ -349,7 +346,6 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	
 	space->Add(arrivalFractionOne); space->Add(sentSizeOne); space->Add(activeCountOne); space->Add(zeroIndicatorOne);
 	space->Add(arrivalFractionTwo); space->Add(sentSizeTwo); space->Add(activeCountTwo); space->Add(zeroIndicatorTwo);
-	space->Add(constantValue);
 
 	return space;
 }
