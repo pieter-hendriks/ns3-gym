@@ -106,9 +106,9 @@ try:
 	action_input = Input(shape=(nb_actions,), name='action_input')
 	actor = Sequential()
 	actor = Flatten()(observation_input)
-	actor = Dense(16, activation='relu')(actor)
-	actor = Dense(32, activation='relu')(actor)
-	actor = Dense(16, activation='relu')(actor)
+	# actor = Dense(16, activation='relu')(actor)
+	# actor = Dense(32, activation='relu')(actor)
+	# actor = Dense(16, activation='relu')(actor)
 	actor = Dense(32, activation='relu')(actor)
 	actor = Dense(nb_actions, activation='linear')(actor)
 
