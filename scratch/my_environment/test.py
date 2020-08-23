@@ -3,9 +3,10 @@
 
 import argparse
 from ns3gym import ns3env
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, Activation, Flatten, Input, Concatenate
-from tensorflow.keras.optimizers import Adam
+from keras.models import Sequential, Model
+from keras.layers import Dense, Activation, Flatten, Input, Concatenate
+from keras import activations
+from keras.optimizers import Adam
 from rl.agents import DDPGAgent
 from rl.agents import DQNAgent
 from rl.memory import SequentialMemory
@@ -105,24 +106,33 @@ try:
 	observation_input = Input(shape=(1,ob_shape_dim), name='observation_input')
 
 	action_input = Input(shape=(nb_actions,), name='action_input')
-	actor = Sequential()
 	actor = Flatten()(observation_input)
-	# actor = Dense(16, activation='relu')(actor)
-	# actor = Dense(32, activation='relu')(actor)
-	# actor = Dense(16, activation='relu')(actor)
-	actor = Dense(32, activation='relu')(actor)
+	actor = Dense(8, activation='linear')(actor)
+	actor = Dense(6, activation='sigmoid')(actor)
+	actor = Dense(4, activation='elu')(actor)
 	actor = Dense(nb_actions, activation='linear')(actor)
+
+	# actor = tf.keras.Sequential()
+	# actor.add(Activation(activations.linear))
+	# actor.add(Dense(8))
+	# actor.add(Activation(activations.tanh))
+	# actor.add(Dense(6))
+	# actor.add(Activation(activations.sigmoid))
+	# actor.add(Dense(4))
+	# actor.add(Activation(activations.elu))
+	# actor.add(Dense(nb_actions))
+	# actor.add(Activation(activations.linear))
 
 	model = Model(inputs=observation_input, outputs=actor)
 	memory = SequentialMemory(limit=50000, window_length=1)
-	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.3, value_test=0, nb_steps=6000)
+	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.3, value_test=0, nb_steps=4000)
 	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=100, target_model_update=1e-2, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
 	agent.compile(Adam(lr=1e-2), metrics=['mae'])
 
 	if args.load_weights:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=10000, visualize=False, verbose=2, nb_max_episode_steps=10)
+		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=10)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:

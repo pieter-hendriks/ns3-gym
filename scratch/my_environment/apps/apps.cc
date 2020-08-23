@@ -238,7 +238,6 @@ void
 Receiver::Receive (Ptr<Socket> socket)
 {
   // NS_LOG_FUNCTION (this << socket << packet << from);
-
   Ptr<Packet> packet;
   Address from;
   while ((packet = socket->RecvFrom (from))) {

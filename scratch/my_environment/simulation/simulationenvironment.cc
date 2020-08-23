@@ -61,8 +61,12 @@
 #define PACKET_SIZE_SD 75
 
 // output limits
-#define ACTIVE_COUNT_MAX 250u
-#define OUTPUT_SIZE_MAX 100u
+#define ACTIVE_COUNT_MAX 500u
+#define OUTPUT_SIZE_MAX 75u
+
+// Roughly calculated, only valid for current scenario.
+// Distance AP -> corner == sqrt(2.5^2 + 2.5^2)
+#define MAX_DISTANCE 3.6 
 
 
 using namespace ns3;
@@ -131,10 +135,6 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
 
-	//wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel");
-	//wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-	//wifiChannel.SetPropagationDelay("ns3::RandomPropagationDelayModel");
-
 	wifiPhy.SetChannel (wifiChannel.Create ());
 	wifiPhy.Set ("TxPowerStart", DoubleValue (1)); // dBm (1.26 mW)
 	wifiPhy.Set ("TxPowerEnd", DoubleValue (1));
@@ -172,8 +172,8 @@ void SimulationEnvironment::setupDefaultEnvironment()
 	nodeSet.Add(nodes.Get(0));
 	nodeSet.Create(1);
 	noiseNode = nodeSet.Get(1);
-	wifiPhy.Set("TxPowerStart", DoubleValue(-90));
-	wifiPhy.Set("TxPowerEnd", DoubleValue(-90));
+	wifiPhy.Set("TxPowerStart", DoubleValue(-70));
+	wifiPhy.Set("TxPowerEnd", DoubleValue(-70));
 	auto noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
 	internet.SetIpv4StackInstall(true);
 	internet.SetIpv6StackInstall(false);
@@ -308,6 +308,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
 	activeCountOne->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(0)));
 	activeCountTwo->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(1)));
+	auto CQI = CreateObject<OpenGymBoxContainer<float>>(shape); 
 
 	auto indicatorOne = CreateObject<OpenGymDiscreteContainer>(), indicatorTwo = CreateObject<OpenGymDiscreteContainer>();
 	// Add indicator value when doing nothing, should allow for easier re-starts and faster learning
@@ -320,9 +321,26 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	else indicatorTwo->SetValue(1);
 	observation->Add(fracContainerOne); observation->Add(sentSizeOne); observation->Add(activeCountOne); observation->Add(indicatorOne);
 	observation->Add(fracContainerTwo); observation->Add(sentSizeTwo); observation->Add(activeCountTwo); observation->Add(indicatorTwo);
+
+
+	// cqi as a function of node distance. Ideally, this would be as a function of received signal power
+	// But that is a metric that is hard to find in ns3, apparently.
+	double cqi = 0;
+	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
+	{
+		cqi += (**it).GetObject<MobilityModel>()->GetDistanceFrom((**nodes.Begin()).GetObject<MobilityModel>());
+	}
+	cqi = 1 - (cqi / (MAX_DISTANCE * nodes.GetN()));
+	CQI->AddValue(static_cast<float>(std::max(0.0, std::min(1.0, cqi))));
+
+	observation->Add(CQI);
+
 	// std::cout << "End observationGet" << std::endl;
 	std::cout << "Outputting obs: [" << fracContainerOne->GetValue(0) << ", " << sentSizeOne->GetValue() << ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
-	std::cout << fracContainerTwo->GetValue(0) << ", " << sentSizeTwo->GetValue() << ", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", 1]" << std::endl;
+	std::cout << fracContainerTwo->GetValue(0) << ", " << sentSizeTwo->GetValue() << ", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
+	
+	
+
 	return observation;
 }
 
@@ -344,8 +362,12 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	auto zeroIndicatorOne = CreateObject<OpenGymDiscreteSpace>(1);
 	auto zeroIndicatorTwo = CreateObject<OpenGymDiscreteSpace>(1);
 	
+	auto cqi = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
+
 	space->Add(arrivalFractionOne); space->Add(sentSizeOne); space->Add(activeCountOne); space->Add(zeroIndicatorOne);
 	space->Add(arrivalFractionTwo); space->Add(sentSizeTwo); space->Add(activeCountTwo); space->Add(zeroIndicatorTwo);
+
+	space->Add(cqi);
 
 	return space;
 }
