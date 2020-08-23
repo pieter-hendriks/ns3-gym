@@ -1,7 +1,7 @@
 {
 	"QoS": {
 		"goal_type": "QoS",
-		"point_value": 1,
+		"point_value": 3,
 		"hold_period": 5,
 		"requirements": {
 			"min_throughput_bps": 196608,
@@ -20,9 +20,9 @@
 			"min_throughput_bps": 65536,
 			"full_reward_max_drop": 0.05,
 			"small_reward_max_drop": 0.25,
-			"small_reward_percentage": 0.5,
+			"small_reward_percentage": 0.2,
 			"bad_result_percentage": 0,
-			"cancel_result_percentage": 0
+			"cancel_result_percentage": -0.05
 		}	
 	}
 }
