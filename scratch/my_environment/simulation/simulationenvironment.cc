@@ -319,12 +319,15 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	if (this->sendApplication->getActiveCount(1) != 0)
 		indicatorTwo->SetValue(0);
 	else indicatorTwo->SetValue(1);
-	observation->Add(fracContainerOne); observation->Add(sentSizeOne); observation->Add(activeCountOne); observation->Add(indicatorOne);
-	observation->Add(fracContainerTwo); observation->Add(sentSizeTwo); observation->Add(activeCountTwo); observation->Add(indicatorTwo);
+	observation->Add(fracContainerOne); 
+	//observation->Add(sentSizeOne); 
+	observation->Add(activeCountOne); 
+	observation->Add(indicatorOne);
+	observation->Add(fracContainerTwo); 
+	//observation->Add(sentSizeTwo); 
+	observation->Add(activeCountTwo); 
+	observation->Add(indicatorTwo);
 
-
-	// cqi as a function of node distance. Ideally, this would be as a function of received signal power
-	// But that is a metric that is hard to find in ns3, apparently.
 	double cqi = 0;
 	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
 	{
@@ -339,8 +342,6 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	std::cout << "Outputting obs: [" << fracContainerOne->GetValue(0) << ", " << sentSizeOne->GetValue() << ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
 	std::cout << fracContainerTwo->GetValue(0) << ", " << sentSizeTwo->GetValue() << ", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
 	
-	
-
 	return observation;
 }
 
@@ -353,8 +354,8 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
 	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
 	
-	auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // Maximum is some max value, because we won't send limits::max()
-	auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
+	//auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // Maximum is some max value, because we won't send limits::max()
+	//auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
 	
 	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // Max value, beyond that we just indicate n. 
 	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // This is far more than would be productive, so should be plenty.
@@ -364,8 +365,14 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	
 	auto cqi = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
 
-	space->Add(arrivalFractionOne); space->Add(sentSizeOne); space->Add(activeCountOne); space->Add(zeroIndicatorOne);
-	space->Add(arrivalFractionTwo); space->Add(sentSizeTwo); space->Add(activeCountTwo); space->Add(zeroIndicatorTwo);
+	space->Add(arrivalFractionOne); 
+	//space->Add(sentSizeOne); 
+	space->Add(activeCountOne); 
+	space->Add(zeroIndicatorOne);
+	space->Add(arrivalFractionTwo); 
+	//space->Add(sentSizeTwo); 
+	space->Add(activeCountTwo); 
+	space->Add(zeroIndicatorTwo);
 
 	space->Add(cqi);
 
@@ -373,10 +380,6 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 }
 bool SimulationEnvironment::GetGameOver()
 {
-	//std::cout << "GGO!" <<std::endl;
-	// Some time frame, probably. Maybe just always false is okay for now.
-	// --> We simply support infinite streams for now, python agent controls episode length.
-	// + environment defines maximum runtime
 	return false;
 }
 
@@ -393,36 +396,11 @@ float SimulationEnvironment::GetReward()
 	}
 	if (this->sendApplication->getActiveGoal(0) == 0 && this->sendApplication->getActiveGoal(1) == 0)
 	{
+		// Negative reward for not allowing any flows, should motivate agent to keep some open.
 		ret -= 20;
 	}
 	std::cout << "Obtained reward = " << ret << std::endl;
 	return ret; 
-
-	// auto points = score, sentCount = sent, recvCount = recv;
-	// score = 0; sent = 0; recv = 0, sentSize = 0;
-	// float ret = 0;
-	// //std::cout << "Getting reward:\n\tFlowPoints:" << points << "\n\tArrival Fraction: " << (sentCount > 0 ? (-5 * (1 - (1.0 * recvCount)/sentCount)) : 1010101010101010ULL) << std::endl;
-	// // Score member variable tracks completed & cancelled flow rewards, so we only adjust here 
-	// // Based on no active flows and on receive fraction.
-	// if (this->sendApplication->getActiveGoal() != 0)
-	// {
-	// 	// Total complete + cancelled rewards,
-	// 	// minus 5x (1 - ratio recv/sent)
-	// 	//std::cout << "\t" << points << " + " << (-5*(1-(1.0 * recvCount) / sentCount)) << std::endl;
-	// 	ret = points + (-5 * (1 - (1.0 * recvCount)/sentCount) * this->sendApplication->getActiveCount());
-	// }
-	// else 
-	// {
-	// 	// For activeCount 0, we can't have bonus from completed flows
-	// 	// However, extra punishment from cancelled flows should be incurred.
-	// 	// in theory, probably doesn't actually matter since this is just a sentinel 'do-not-do-this' value
-	// 	ret = points - 100000;
-	// }
-	// //std::cout << "\tTotal: " << ret << std::endl;
-	// removeCompleted(recvPacketMap, sentPacketMap, completedFlows);
-	// if (ret > 200000)
-	// 	throw std::runtime_error("That's not supposed to happen.");
-	// return ret;
 }
 
 
