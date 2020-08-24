@@ -215,7 +215,7 @@ void SimulationEnvironment::CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDev
 		recvAddresses.push_back(nodes.Get(i)->GetObject<ns3::Ipv4>()->GetAddress(1,0).GetLocal());
 		receivers.back()->SetStartTime(ns3::Time::FromInteger(100, ns3::Time::Unit::MS));
 	}
-	std::vector<int> appCounts = {static_cast<int>(std::rand() % 120 + 5), static_cast<int>(std::rand() % 120 + 5)};
+	std::vector<int> appCounts = {static_cast<int>(std::rand() % 70 + 3), static_cast<int>(std::rand() % 30 + 3)};
 	this->sendApplication = CreateObject<MySender>(ns3::Ptr<SimulationEnvironment>(this), recvAddresses, AP,
 	 PACKET_SIZE_MEAN, PACKET_SIZE_SD, std::move(appCounts));
 	AP->AddApplication(this->sendApplication);
@@ -394,10 +394,15 @@ float SimulationEnvironment::GetReward()
 		score[i] = 0; sent[i] = 0; recv[i] = 0;
 		ret += points;
 	}
-	if (this->sendApplication->getActiveGoal(0) == 0 && this->sendApplication->getActiveGoal(1) == 0)
+	// Negative reward for not allowing any flows, should motivate agent to keep some open.
+	// Both for BE and QoS traffic, punishment for no QoS is much larger, though.
+	if (this->sendApplication->getActiveGoal(0) == 0)
 	{
-		// Negative reward for not allowing any flows, should motivate agent to keep some open.
-		ret -= 20;
+		ret -= 18; 
+	}
+	if (this->sendApplication->getActiveGoal(1) == 0)
+	{
+		ret -= 2;
 	}
 	std::cout << "Obtained reward = " << ret << std::endl;
 	return ret; 
