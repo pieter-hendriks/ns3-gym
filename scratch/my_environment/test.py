@@ -108,9 +108,9 @@ try:
 
 	action_input = Input(shape=(nb_actions,), name='action_input')
 	actor = Flatten()(observation_input)
-	actor = Dense(12, activation='linear')(actor)
-	actor = Dense(8, activation='elu')(actor)
-	actor = Dense(4, activation='tanh')(actor)
+	actor = Dense(32, activation='linear')(actor)
+	actor = Dense(48, activation='exponential')(actor)
+	actor = Dense(32, activation='tanh')(actor)
 	actor = Dense(nb_actions, activation='linear')(actor)
 
 	model = Model(inputs=observation_input, outputs=actor)
