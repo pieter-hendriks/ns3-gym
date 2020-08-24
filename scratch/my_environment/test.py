@@ -81,7 +81,7 @@ load_weights = bool(args.load_weights)
 port = int(args.port)
 disable_test = bool(args.no_test)
 assert not (disable_test and runEvalOnly)
-simTime = 600 # seconds
+simTime = 1250 # seconds
 stepTime = 5 # seconds
 seed = random.randint(0, 150000)
 simArgs = {"--simTime": simTime,
@@ -122,7 +122,7 @@ try:
 	if args.load_weights:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=10)
+		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=250)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:
