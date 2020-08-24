@@ -300,9 +300,9 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 		fracContainerTwo->AddValue(-1.0f); // 1 for consistency: All sent packets have arrived.
 	}
 
-	auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
-	sentSizeOne->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5))); // Convert to MiB to lower the value
-	sentSizeTwo->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[1] / 1024.0 / 1024) + 0.5)));
+	// auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
+	// sentSizeOne->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5))); // Convert to MiB to lower the value
+	// sentSizeTwo->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[1] / 1024.0 / 1024) + 0.5)));
 	sentSize[0] = 0; sentSize[1] = 0;
 
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
@@ -339,8 +339,8 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	observation->Add(CQI);
 
 	// std::cout << "End observationGet" << std::endl;
-	std::cout << "Outputting obs: [" << fracContainerOne->GetValue(0) << ", " << sentSizeOne->GetValue() << ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
-	std::cout << fracContainerTwo->GetValue(0) << ", " << sentSizeTwo->GetValue() << ", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
+	std::cout << "Outputting obs: [" << fracContainerOne->GetValue(0) << /*", " << sentSizeOne->GetValue() <<*/ ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
+	std::cout << fracContainerTwo->GetValue(0) << /*", " << sentSizeTwo->GetValue() << */", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
 	
 	return observation;
 }

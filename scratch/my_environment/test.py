@@ -41,12 +41,13 @@ class MyProcessor(Processor):
 	
 	def process_observation(self, obs):
 		if not obs:
-			obs = [-1., 0, 0, 1, -1., 0, 0, 1, 1]
+			obs = [-1., 0, 1, -1., 0, 1, 0.5, 1]
 		else:
+			# Unpack/flatten the box spaces to singular values
 			fn = lambda x: x if type(x) in [int, float] else x[0]
 			obs = [fn(x) for x in obs]
 			obs.append(1)
-		print (obs)
+		# print (obs)
 		return obs
 
 parser = argparse.ArgumentParser(description='Start simulation script on/off')
