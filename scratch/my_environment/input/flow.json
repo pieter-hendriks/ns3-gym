@@ -8,8 +8,8 @@
 			"full_reward_max_drop": 0.02,
 			"small_reward_max_drop": 0.1,
 			"small_reward_percentage": 0.05,
-			"bad_result_percentage": -0.5,
-			"cancel_result_percentage": -0.25
+			"bad_result_percentage": 0,
+			"cancel_result_percentage": 0
 		}
 	},
 	"BE": {
@@ -21,8 +21,8 @@
 			"full_reward_max_drop": 0.05,
 			"small_reward_max_drop": 0.25,
 			"small_reward_percentage": 0.2,
-			"bad_result_percentage": -0.02,
-			"cancel_result_percentage": -0.05
+			"bad_result_percentage": 0,
+			"cancel_result_percentage": 0
 		}	
 	}
 }

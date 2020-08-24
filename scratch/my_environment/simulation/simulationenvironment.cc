@@ -394,16 +394,16 @@ float SimulationEnvironment::GetReward()
 		score[i] = 0; sent[i] = 0; recv[i] = 0;
 		ret += points;
 	}
-	// Negative reward for not allowing any flows, should motivate agent to keep some open.
-	// Both for BE and QoS traffic, punishment for no QoS is much larger, though.
-	if (this->sendApplication->getActiveGoal(0) == 0)
-	{
-		ret -= 18; 
-	}
-	if (this->sendApplication->getActiveGoal(1) == 0)
-	{
-		ret -= 2;
-	}
+	// // Negative reward for not allowing any flows, should motivate agent to keep some open.
+	// // Both for BE and QoS traffic, punishment for no QoS is much larger, though.
+	// if (this->sendApplication->getActiveGoal(0) == 0)
+	// {
+	// 	ret -= 18; 
+	// }
+	// if (this->sendApplication->getActiveGoal(1) == 0)
+	// {
+	// 	ret -= 2;
+	// }
 	std::cout << "Obtained reward = " << ret << std::endl;
 	return ret; 
 }
