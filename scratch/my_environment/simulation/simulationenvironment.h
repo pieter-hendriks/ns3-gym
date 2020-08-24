@@ -54,7 +54,8 @@ private:
 	void handleCancelledFlows();
 	double interval;
 	uint64_t nextFlowId;
-	std::vector<int64_t> score, sent, recv, sentSize;
+	std::vector<double> score;
+	std::vector<int64_t> sent, recv, sentSize;
 	std::map<unsigned, unsigned> sentPacketMap;
 	std::map<unsigned, unsigned> recvPacketMap;
 	std::vector<unsigned> completedFlows, cancelledFlows;
