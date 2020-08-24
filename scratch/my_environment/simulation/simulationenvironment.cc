@@ -61,7 +61,7 @@
 #define PACKET_SIZE_SD 75
 
 // output limits
-#define ACTIVE_COUNT_MAX 500u
+#define ACTIVE_COUNT_MAX 750u
 #define OUTPUT_SIZE_MAX 75u
 
 // Roughly calculated, only valid for current scenario.
@@ -286,18 +286,24 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 {
 	auto observation = CreateObject<OpenGymTupleContainer>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
+
 	auto fracContainerOne = CreateObject<OpenGymBoxContainer<float>>(shape), fracContainerTwo = CreateObject<OpenGymBoxContainer<float>>(shape);
 	if (sent[0] > 0)
-		fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
+	{
+		fracContainerOne->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[0]) + this->sendApplication->getActiveCount(0)) / sent[0]));
+		//fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
+	}
 	else 
 	{
-		fracContainerOne->AddValue(-1.0f); // 1 for consistency: All sent packets have arrived.
+		fracContainerOne->AddValue(0.0f);
 	}
 	if (sent[1] > 0)
-	fracContainerTwo->AddValue(std::min(1.0f, static_cast<float>(recv[1])/sent[1]));
+	{
+		fracContainerTwo->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[1])  + this->sendApplication->getActiveCount(0)) / sent[1]));
+	}
 	else 
 	{
-		fracContainerTwo->AddValue(-1.0f); // 1 for consistency: All sent packets have arrived.
+		fracContainerTwo->AddValue(0.0f);
 	}
 
 	// auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
@@ -319,6 +325,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	if (this->sendApplication->getActiveCount(1) != 0)
 		indicatorTwo->SetValue(0);
 	else indicatorTwo->SetValue(1);
+
 	observation->Add(fracContainerOne); 
 	//observation->Add(sentSizeOne); 
 	observation->Add(activeCountOne); 
@@ -351,8 +358,8 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	// But this is always correct. Issues with the other method might be hard to find.
 	auto space = CreateObject<OpenGymTupleSpace>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
-	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(-1, 1, shape, TypeNameGet<float>());
+	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
+	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
 	
 	//auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // Maximum is some max value, because we won't send limits::max()
 	//auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
