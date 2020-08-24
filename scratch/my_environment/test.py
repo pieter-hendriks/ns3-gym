@@ -115,9 +115,9 @@ try:
 
 	model = Model(inputs=observation_input, outputs=actor)
 	memory = SequentialMemory(limit=50000, window_length=1)
-	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.3, value_test=0, nb_steps=4000)
-	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=100, target_model_update=1e-2, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
-	agent.compile(Adam(lr=1e-2), metrics=['mae'])
+	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.2, value_test=0.05, nb_steps=10000)
+	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=100, target_model_update=1e-3, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
+	agent.compile(Adam(lr=1e-3), metrics=['mae'])
 
 	if args.load_weights:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
