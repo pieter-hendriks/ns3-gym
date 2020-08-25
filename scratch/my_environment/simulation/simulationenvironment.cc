@@ -68,7 +68,6 @@
 #include "ns3/config-store.h"
 
 #define INPUT_FILE "scratch/my_environment/input/flow.json"
-#define LTE_BOOLEAN false 
 
 #define RECEIVER_NODE_COUNT 8u
 
@@ -82,7 +81,7 @@
 #define OUTPUT_SIZE_MAX 75u
 
 // Roughly calculated, only valid for current scenario.
-// Distance AP -> corner == sqrt(2.5^2 + 2.5^2)
+// Distance AP -> corner == sqrt(2.5^2 + 2.5^2) ~= 3.6
 #define MAX_DISTANCE 3.6 
 
 
@@ -232,86 +231,17 @@ void SimulationEnvironment::SetupLTEEnvironment()
 	{
 		nodes.Add(*x);
 	}
-	//nodes.Add(enbNodes.Get(0));
-	//nodes.Add(pgw);
-	
-	std::cout << "First section ok" << std::endl;
-
-
-	// nodes.Create(RECEIVER_NODE_COUNT);
-	// NodeContainer nodeSet;
-	// nodeSet.Create(2);
-	// auto apNode = nodeSet.Get(0);
-	// noiseNode = nodeSet.Get(1);
-	// // Install mobility
-	// MobilityHelper mobility;
-	// Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
-	// // Non-zero positions because randomwalk model has infinite loop if things spawn on the edge (or maybe only on the corners?)
-	// // Changed position for both coordinates to avoid corners, 
-
-	// // AP position (central in grid)
-	// positionAlloc->Add (Vector (2.5, 2.5, 0.0));
-	// // NoiseDevice Position
-	// positionAlloc->Add (Vector (1.0, 1.0, 0.0));
-	// // All other nodes.
-	// positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (2.5, 0.1, 0.0)); positionAlloc->Add (Vector (4.9, 0.1, 0.0));
-	// positionAlloc->Add (Vector (0.1, 2.5, 0.0));  positionAlloc->Add (Vector (4.9, 2.5, 0.0));
-	// positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
-	// mobility.SetPositionAllocator (positionAlloc);
-	// mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel"); 
-	// mobility.Install(nodeSet);
-	// mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
-	// 												"Mode", StringValue("Time"), 
-	// 												"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
-	// 												"Time", TimeValue(Seconds(2)),
-	// 												"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
-	// 												"Bounds", StringValue("0|5|0|5"));
-	// mobility.Install (nodes);
-
-	// NetDeviceContainer receiverDevices;
-	// NetDeviceContainer senderDevice;
-	// Ptr<LteHelper> helper = CreateObject<LteHelper>();
-	// Config::SetDefault("ns3::LteUePhy::TxPower", DoubleValue(20));
-	// Config::SetDefault("ns3::LteEnbPhy::TxPower", DoubleValue(30));
-	// // helper->SetEnbDeviceAttribute ("DlBandwidth", UintegerValue (25));
-	// // helper->SetEnbDeviceAttribute ("UlBandwidth", UintegerValue (25));
-	// helper->SetEnbDeviceAttribute ("DlEarfcn", UintegerValue(1575));
-	// helper->SetEnbDeviceAttribute ("UlEarfcn", UintegerValue(19575));
-	// Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
-	// helper->SetEpcHelper(epcHelper);
-	// NodeContainer enb_container;
-	// enb_container.Add(nodeSet.Get(0));
-	// receiverDevices = helper->InstallUeDevice(nodes);
-	// senderDevice = helper->InstallEnbDevice(enb_container);
-	// InternetStackHelper internet;
-	// // internet.SetIpv4StackInstall(true);
-	// // internet.SetIpv6StackInstall(false);
-	// internet.Install (nodes);
-	// Ipv4InterfaceContainer ueIpInterfaces = epcHelper->AssignUeIpv4Address(NetDeviceContainer(receiverDevices));
-	// // uint64_t imsi = 313460000000001;
-	// Ipv4StaticRoutingHelper ipv4RoutingHelper;
-	// for (auto u = 0u; u < nodes.GetN(); ++u)
-	// {
-	// 	ipv4RoutingHelper.GetStaticRouting(nodes.Get(u)->GetObject<Ipv4>())->SetDefaultRoute(epcHelper->GetUeDefaultGatewayAddress(), 1);
-	// 	// nodes.Get(u)->GetObject<LteUeNetDevice>()->SetAttribute("Imsi", UintegerValue(imsi));
-	// }
-
-	// helper->Attach(receiverDevices, senderDevice.Get(0));
-	// // helper->Attach(receiverDevices, senderDevice.Get(0));
-	// Config::SetDefault("ns3::LteUePhy::TxPower", DoubleValue(0.5));
-	// noiseDevice = helper->InstallUeDevice(noiseNode);
-	// // Noise node
-	// nodes.Add(noiseNode);
-	// // And AP node
-	// nodes.Add(apNode);
 }
 
 void SimulationEnvironment::setupDefaultEnvironment()
 {
-	if (LTE_BOOLEAN)
+	std::cout << "Do you want to use the LTE or the WiFi environment? Please enter '0' for wifi, '1' for LTE." << std::endl;
+	unsigned selector = 0;
+	std::cin >> selector;
+	if (selector != 0 && selector != 1)
+		throw std::runtime_error("Please enter one of the values requested.");
+	if (selector == 1)
 	{
-		
-
 		this->SetupLTEEnvironment();
 	}
 	else
@@ -419,7 +349,6 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 		if (sent[i] > 0)
 		{
 			auto arrivalPercentage = static_cast<double>(recv[i] + this->sendApplication->getActiveCount(i)) / sent[i];
-			std::cout << "Arrival percentage: " << arrivalPercentage;
 			if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].fullRewardDropPercentage))
 			{
 				containers[i]->SetValue(0);
@@ -432,37 +361,12 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 			{
 				containers[i]->SetValue(2);
 			}
-			std::cout << ", leads to value " << containers[i]->GetValue() << std::endl;
 		}
 		else
 		{
-			std::cout << "No sent, so adding 0" << std::endl;
 			containers[i]->SetValue(0);
 		}
 	}
-	// auto fracContainerOne = CreateObject<OpenGymBoxContainer<float>>(shape), fracContainerTwo = CreateObject<OpenGymBoxContainer<float>>(shape);
-	// if (sent[0] > 0)
-	// {
-	// 	fracContainerOne->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[0]) + this->sendApplication->getActiveCount(0)) / sent[0]));
-	// 	//fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
-	// }
-	// else 
-	// {
-	// 	fracContainerOne->AddValue(1.0f);
-	// }
-	// if (sent[1] > 0)
-	// {
-	// 	fracContainerTwo->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[1])  + this->sendApplication->getActiveCount(0)) / sent[1]));
-	// }
-	// else 
-	// {
-	// 	fracContainerTwo->AddValue(1.0f);
-	// }
-
-	// auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
-	// sentSizeOne->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5))); // Convert to MiB to lower the value
-	// sentSizeTwo->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[1] / 1024.0 / 1024) + 0.5)));
-	sentSize[0] = 0; sentSize[1] = 0;
 
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
 	activeCountOne->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(0)));
@@ -502,6 +406,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	std::cout << "Outputting obs: [" << packetDropCategoryOne->GetValue() << /*", " << sentSizeOne->GetValue() <<*/ ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
 	std::cout << packetDropCategoryTwo->GetValue() << /*", " << sentSizeTwo->GetValue() << */", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
 	
+	sentSize[0] = 0; sentSize[1] = 0;
 	return observation;
 }
 
@@ -621,21 +526,25 @@ void SimulationEnvironment::SetupWifiEnvironment()
 	WifiMacHelper wifiMac;
 	wifiMac.SetType ("ns3::AdhocWifiMac");
 	receiverDevices = wifi.Install (wifiPhy, wifiMac, nodes);
+	senderDevice = wifi.Install(wifiPhy, wifiMac, sendNode);
 	wifiPhy.Set("TxPowerStart", DoubleValue(-70));
 	wifiPhy.Set("TxPowerEnd", DoubleValue(-70));
 	noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
-	nodes.Add(nodeSet.Get(0));
+	
 	InternetStackHelper internet;
 	internet.SetIpv4StackInstall(true);
 	internet.SetIpv6StackInstall(false);
 	internet.Install (nodes);
+	internet.Install (sendNode);
+	internet.Install (noiseNode);
+
 	Ipv4AddressHelper ipAddrs;
 	ipAddrs.SetBase ("192.168.0.0", "255.255.255.0");
 	ipAddrs.Assign (receiverDevices);
 	ipAddrs.Assign (senderDevice);
 	ipAddrs.SetBase("192.168.1.0", "255.255.255.0");
-	internet.Install(noiseNode);
 	ipAddrs.Assign(noiseDevice);
+
 	nodes.Add(noiseNode);
 	nodes.Add(apNode);
 }
