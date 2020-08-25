@@ -6,6 +6,7 @@ venv/
 *.patch
 *.rej
 
+*.old
 checkpoint
 
 *.o
