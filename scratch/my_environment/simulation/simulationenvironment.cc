@@ -233,11 +233,24 @@ void SimulationEnvironment::SetupLTEEnvironment()
 	}
 }
 
+// #include "lte_env.h"
+// #include "wifi_env.h"
+
 void SimulationEnvironment::setupDefaultEnvironment()
 {
+	#ifndef ENV_SELECTOR
 	std::cout << "Do you want to use the LTE or the WiFi environment? Please enter '0' for wifi, '1' for LTE." << std::endl;
 	unsigned selector = 0;
 	std::cin >> selector;
+	#else
+		#if ENV_SELECTOR==0
+			unsigned selector = 0;
+		#elif ENV_SELECTOR==1
+			unsigned selector = 1;
+		#else
+			throw std::runtime_error("Invalid ENV_SELECTOR definition value.");
+		#endif
+	#endif
 	if (selector != 0 && selector != 1)
 		throw std::runtime_error("Please enter one of the values requested.");
 	if (selector == 1)
@@ -274,7 +287,7 @@ void SimulationEnvironment::CreateApplications()
 	this->sendApplication->SetStartTime(ns3::Time::FromInteger(750, ns3::Time::Unit::MS));
 	if (noiseNode != nullptr)
 	{
-		auto noiseApp = CreateObject<MyNoiseMachine>(noiseDevice.Get(0), LTE_BOOLEAN);
+		auto noiseApp = CreateObject<MyNoiseMachine>(noiseDevice.Get(0));
 		noiseNode->AddApplication(noiseApp);
 		noiseApp->SetStartTime(ns3::Time::FromInteger(150, ns3::Time::Unit::MS));
 	}
