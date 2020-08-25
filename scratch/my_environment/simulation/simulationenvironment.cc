@@ -68,7 +68,7 @@
 #include "ns3/config-store.h"
 
 #define INPUT_FILE "scratch/my_environment/input/flow.json"
-#define LTE_BOOLEAN true
+#define LTE_BOOLEAN false 
 
 #define RECEIVER_NODE_COUNT 8u
 
