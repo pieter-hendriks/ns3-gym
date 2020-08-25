@@ -4,7 +4,7 @@
 #include "apps.h"
 
 #include "../simulation/flow.h"
-
+#include "ns3/lte-enb-net-device.h"
 #include <deque>
 #include <random>
 #include <memory>
@@ -23,6 +23,8 @@ class MySender : public Sender
 		unsigned getActiveGoal(unsigned index) const;
 
 		void scheduleFlowRecreation();
+
+		const std::vector<FlowSpec>& getFlowSpecs() const;
 	private:
 		void HandleFlowCompletion(const Flow& flow);
 		void createFlow(unsigned index);

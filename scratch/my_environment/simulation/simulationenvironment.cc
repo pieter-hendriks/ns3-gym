@@ -20,6 +20,7 @@
 #include "ns3/udp-header.h"
 #include "ns3/udp-server.h"
 #include "ns3/udp-trace-client.h"
+#include "ns3/lte-ue-net-device.h"
 
 #include "ns3/wifi-helper.h"
 #include "ns3/wifi-mac-helper.h"
@@ -37,6 +38,9 @@
 #include "ns3/opengym-module.h"
 #include "ns3/random-walk-2d-mobility-model.h"
 
+#include "ns3/lte-helper.h"
+#include "ns3/eps-bearer.h"
+
 #include <ctime>
 #include <sstream>
 #include <numeric>
@@ -50,14 +54,27 @@
 #include "../apps/mysender.h"
 #include "../apps/myreceiver.h"
 #include "../apps/mynoisemachine.h"
+#include "ns3/point-to-point-epc-helper.h"
+#include "ns3/lte-helper.h"
+#include "ns3/epc-helper.h"
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
+#include "ns3/ipv4-global-routing-helper.h"
+#include "ns3/internet-module.h"
+#include "ns3/mobility-module.h"
+#include "ns3/lte-module.h"
+#include "ns3/applications-module.h"
+#include "ns3/point-to-point-helper.h"
+#include "ns3/config-store.h"
 
 #define INPUT_FILE "scratch/my_environment/input/flow.json"
+#define LTE_BOOLEAN true
 
-#define WIFI_NODE_COUNT 8u
+#define RECEIVER_NODE_COUNT 8u
 
-// Actual packet sizes are limited to [100, 1500]
+// Actual packet sizes are limited to [100, 1400]
 // (Fragmentation breaks packet counter, so have to avoid it)
-#define PACKET_SIZE_MEAN 1350
+#define PACKET_SIZE_MEAN 1250
 #define PACKET_SIZE_SD 75
 
 // output limits
@@ -82,12 +99,12 @@ TypeId SimulationEnvironment::GetTypeId()
 // Hard-coded for 2 flows. Probably not great, but eh. Alternatively, in createDefaultEnvironment, get the actual count from MySender and reinitialize the vectors
 SimulationEnvironment::SimulationEnvironment(double inter) : interval(inter), nextFlowId(0), score(2), sent(2), recv(2), sentSize(2), sentPacketMap(), recvPacketMap(),
 	completedFlows(), cancelledFlows(), sendApplication(nullptr), nodes(), noiseNode(nullptr)
-{}
+{
+	this->setupDefaultEnvironment();
+}
 void SimulationEnvironment::AddCompletedFlow(unsigned id, const FlowSpec& spec)
 {
 	completedFlows.push_back(id);
-	if (static_cast<double>(recvPacketMap.at(id)) / static_cast<double>(sentPacketMap.at(id)) > 1) 
-		throw std::runtime_error("U fucking wot");
 	// +1 to give the benefit of the doubt; packet could be in transit and about to arrive. 
 	// Giving the benefit of the doubt, if ratio almost that high is more likely to be correct than incorrect.
 	double arrivalRate = (static_cast<double>(recvPacketMap.at(id) + 1) / static_cast<double>(sentPacketMap.at(id)));
@@ -128,87 +145,192 @@ void SimulationEnvironment::AddReceivedPacket(unsigned flowId, const FlowSpec& s
 	}
 }
 
-void SimulationEnvironment::setupDefaultEnvironment()
+
+void SimulationEnvironment::SetupLTEEnvironment()
 {
-	nodes.Create(WIFI_NODE_COUNT + 1);
-	
-	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
-	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
+	lteHelper = CreateObject<LteHelper> ();
+  Ptr<PointToPointEpcHelper>  epcHelper = CreateObject<PointToPointEpcHelper> ();
+  lteHelper->SetEpcHelper (epcHelper);
+	ConfigStore inputConfig;
+  inputConfig.ConfigureDefaults();
 
-	wifiPhy.SetChannel (wifiChannel.Create ());
-	wifiPhy.Set ("TxPowerStart", DoubleValue (1)); // dBm (1.26 mW)
-	wifiPhy.Set ("TxPowerEnd", DoubleValue (1));
-	wifiPhy.Set ("Frequency", UintegerValue (5180));
-	WifiHelper wifi;
-	wifi.SetRemoteStationManager("ns3::AarfWifiManager");
-	WifiMacHelper wifiMac;
-	wifiMac.SetType ("ns3::AdhocWifiMac");
-	NetDeviceContainer nodeDevices = wifi.Install (wifiPhy, wifiMac, nodes);
+  Ptr<Node> pgw = epcHelper->GetPgwNode ();
 
-	InternetStackHelper internet;
-	internet.SetIpv4StackInstall(true);
-	internet.SetIpv6StackInstall(false);
-	internet.Install (nodes);
-	Ipv4AddressHelper ipAddrs;
-	ipAddrs.SetBase ("192.168.0.0", "255.255.255.0");
-	ipAddrs.Assign (nodeDevices);
+  // Create a single RemoteHost
+  NodeContainer remoteHostContainer;
+  remoteHostContainer.Create (1);
+  Ptr<Node> remoteHost = remoteHostContainer.Get (0);
+  InternetStackHelper internet;
+  internet.Install (remoteHostContainer);
 
-	MobilityHelper mobility;
-	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+	// Create the Internet
+  PointToPointHelper p2ph;
+  p2ph.SetDeviceAttribute ("DataRate", DataRateValue (DataRate ("100Gb/s")));
+  p2ph.SetDeviceAttribute ("Mtu", UintegerValue (1500));
+  p2ph.SetChannelAttribute ("Delay", TimeValue (Seconds (0.010)));
+  NetDeviceContainer internetDevices = p2ph.Install (pgw, remoteHost);
+  Ipv4AddressHelper ipv4h;
+  ipv4h.SetBase ("1.0.0.0", "255.0.0.0");
+  Ipv4InterfaceContainer internetIpIfaces = ipv4h.Assign (internetDevices);
+  // interface 0 is localhost, 1 is the p2p device
+  //Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress (1);
 
-	// Non-zero positions because randomwalk model has infinite loop if things spawn on the edge (or maybe only on the corners?)
-	// Changed position for both coordinates to avoid corners, 
+  Ipv4StaticRoutingHelper ipv4RoutingHelper;
+  Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting (remoteHost->GetObject<Ipv4> ());
+  remoteHostStaticRouting->AddNetworkRouteTo (Ipv4Address ("7.0.0.0"), Ipv4Mask ("255.0.0.0"), 1);
 
-	// AP position (central in grid)
+	NodeContainer ueNodes;
+	sendNode.Create(1);
+	ueNodes.Create(RECEIVER_NODE_COUNT);
+
+  // Install Mobility Model
+  Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
+	// // AP position (central in grid)
 	positionAlloc->Add (Vector (2.5, 2.5, 0.0));
-	positionAlloc->Add (Vector (1.0, 1.0, 0.0));
-	// All other nodes.
+	// // All other nodes.
 	positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (2.5, 0.1, 0.0)); positionAlloc->Add (Vector (4.9, 0.1, 0.0));
 	positionAlloc->Add (Vector (0.1, 2.5, 0.0));  positionAlloc->Add (Vector (4.9, 2.5, 0.0));
 	positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
-	mobility.SetPositionAllocator (positionAlloc);
-	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-	NodeContainer nodeSet;
-	nodeSet.Add(nodes.Get(0));
-	nodeSet.Create(1);
-	noiseNode = nodeSet.Get(1);
-	wifiPhy.Set("TxPowerStart", DoubleValue(-70));
-	wifiPhy.Set("TxPowerEnd", DoubleValue(-70));
-	auto noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
-	internet.SetIpv4StackInstall(true);
-	internet.SetIpv6StackInstall(false);
-	ipAddrs.SetBase("192.168.1.0", "255.255.255.0");
-	internet.Install(noiseNode);
-	ipAddrs.Assign(noiseDevice);
-	mobility.Install(nodeSet);
-	nodeSet = NodeContainer();
-	for (auto it = ++nodes.Begin(); it != nodes.End(); ++it)
-	{
-		nodeSet.Add(*it);
-	}
+  MobilityHelper mobility;
+  mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+  mobility.SetPositionAllocator(positionAlloc);
+  mobility.Install(sendNode);
 	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
 														"Mode", StringValue("Time"), 
 														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
 														"Time", TimeValue(Seconds(2)),
 														"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
 														"Bounds", StringValue("0|5|0|5"));
-	mobility.Install (nodeSet);
+  mobility.Install(ueNodes);
+
+  // Install LTE Devices to the nodes
+  NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (sendNode);
+  NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (ueNodes);
+
+  // Install the IP stack on the UEs
+  internet.Install (ueNodes);
+
+  Ipv4InterfaceContainer ueIpIface;
+  ueIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
+  // Assign IP address to UEs, and install applications
+  for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
+	{
+		Ptr<Node> ueNode = ueNodes.Get (u);
+		// Set the default gateway for the UE
+		Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
+		ueStaticRouting->SetDefaultRoute (epcHelper->GetUeDefaultGatewayAddress (), 1);
+	}
+
+  // Attach one UE per eNodeB
+  for (uint16_t i = 0; i < RECEIVER_NODE_COUNT; i++)
+	{
+		lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(0));
+		// side effect: the default EPS bearer will be activated
+	}
+
+	for (auto x = ueNodes.Begin(); x != ueNodes.End(); ++x)
+	{
+		nodes.Add(*x);
+	}
+	//nodes.Add(enbNodes.Get(0));
+	//nodes.Add(pgw);
 	
-	this->CreateApplications(noiseDevice.Get(0));
-	//std::cout << "Scheduled stateRead " << interval << " seconds from now." << std::endl;
-	//Simulator::Schedule(Time::FromInteger(interval, Time::S), &SimulationEnvironment::StateRead, this);
-	Simulator::ScheduleNow(&SimulationEnvironment::StateRead, this);
+	std::cout << "First section ok" << std::endl;
 
-	//wifiPhy.EnablePcapAll("mypcap", true);
 
-	//std::cout << "Environment set up" << std::endl;
+	// nodes.Create(RECEIVER_NODE_COUNT);
+	// NodeContainer nodeSet;
+	// nodeSet.Create(2);
+	// auto apNode = nodeSet.Get(0);
+	// noiseNode = nodeSet.Get(1);
+	// // Install mobility
+	// MobilityHelper mobility;
+	// Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+	// // Non-zero positions because randomwalk model has infinite loop if things spawn on the edge (or maybe only on the corners?)
+	// // Changed position for both coordinates to avoid corners, 
+
+	// // AP position (central in grid)
+	// positionAlloc->Add (Vector (2.5, 2.5, 0.0));
+	// // NoiseDevice Position
+	// positionAlloc->Add (Vector (1.0, 1.0, 0.0));
+	// // All other nodes.
+	// positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (2.5, 0.1, 0.0)); positionAlloc->Add (Vector (4.9, 0.1, 0.0));
+	// positionAlloc->Add (Vector (0.1, 2.5, 0.0));  positionAlloc->Add (Vector (4.9, 2.5, 0.0));
+	// positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
+	// mobility.SetPositionAllocator (positionAlloc);
+	// mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel"); 
+	// mobility.Install(nodeSet);
+	// mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
+	// 												"Mode", StringValue("Time"), 
+	// 												"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
+	// 												"Time", TimeValue(Seconds(2)),
+	// 												"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
+	// 												"Bounds", StringValue("0|5|0|5"));
+	// mobility.Install (nodes);
+
+	// NetDeviceContainer receiverDevices;
+	// NetDeviceContainer senderDevice;
+	// Ptr<LteHelper> helper = CreateObject<LteHelper>();
+	// Config::SetDefault("ns3::LteUePhy::TxPower", DoubleValue(20));
+	// Config::SetDefault("ns3::LteEnbPhy::TxPower", DoubleValue(30));
+	// // helper->SetEnbDeviceAttribute ("DlBandwidth", UintegerValue (25));
+	// // helper->SetEnbDeviceAttribute ("UlBandwidth", UintegerValue (25));
+	// helper->SetEnbDeviceAttribute ("DlEarfcn", UintegerValue(1575));
+	// helper->SetEnbDeviceAttribute ("UlEarfcn", UintegerValue(19575));
+	// Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
+	// helper->SetEpcHelper(epcHelper);
+	// NodeContainer enb_container;
+	// enb_container.Add(nodeSet.Get(0));
+	// receiverDevices = helper->InstallUeDevice(nodes);
+	// senderDevice = helper->InstallEnbDevice(enb_container);
+	// InternetStackHelper internet;
+	// // internet.SetIpv4StackInstall(true);
+	// // internet.SetIpv6StackInstall(false);
+	// internet.Install (nodes);
+	// Ipv4InterfaceContainer ueIpInterfaces = epcHelper->AssignUeIpv4Address(NetDeviceContainer(receiverDevices));
+	// // uint64_t imsi = 313460000000001;
+	// Ipv4StaticRoutingHelper ipv4RoutingHelper;
+	// for (auto u = 0u; u < nodes.GetN(); ++u)
+	// {
+	// 	ipv4RoutingHelper.GetStaticRouting(nodes.Get(u)->GetObject<Ipv4>())->SetDefaultRoute(epcHelper->GetUeDefaultGatewayAddress(), 1);
+	// 	// nodes.Get(u)->GetObject<LteUeNetDevice>()->SetAttribute("Imsi", UintegerValue(imsi));
+	// }
+
+	// helper->Attach(receiverDevices, senderDevice.Get(0));
+	// // helper->Attach(receiverDevices, senderDevice.Get(0));
+	// Config::SetDefault("ns3::LteUePhy::TxPower", DoubleValue(0.5));
+	// noiseDevice = helper->InstallUeDevice(noiseNode);
+	// // Noise node
+	// nodes.Add(noiseNode);
+	// // And AP node
+	// nodes.Add(apNode);
 }
-void SimulationEnvironment::CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDevice)
+
+void SimulationEnvironment::setupDefaultEnvironment()
 {
-	auto AP = nodes.Get(0);
+	if (LTE_BOOLEAN)
+	{
+		
+
+		this->SetupLTEEnvironment();
+	}
+	else
+	{
+		this->SetupWifiEnvironment();
+	}
+
+}
+void SimulationEnvironment::Activate()
+{
+	Simulator::ScheduleNow(&SimulationEnvironment::CreateApplications, this);
+	Simulator::ScheduleNow(&SimulationEnvironment::StateRead, this);
+}
+void SimulationEnvironment::CreateApplications()
+{
+	auto AP = nodes.Get(nodes.GetN() - 1);
 	std::vector<Ptr<MyReceiver>> receivers;
 	std::vector<Ipv4Address> recvAddresses;
-	for (auto i = 1u; i <= WIFI_NODE_COUNT; ++i)
+	for (auto i = 0u; i < RECEIVER_NODE_COUNT; ++i)
 	{
 		receivers.emplace_back(CreateObject<MyReceiver>(ns3::Ptr<SimulationEnvironment>(this), nodes.Get(i)));
 		nodes.Get(i)->AddApplication(receivers.back());
@@ -220,10 +342,12 @@ void SimulationEnvironment::CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDev
 	 PACKET_SIZE_MEAN, PACKET_SIZE_SD, std::move(appCounts));
 	AP->AddApplication(this->sendApplication);
 	this->sendApplication->SetStartTime(ns3::Time::FromInteger(750, ns3::Time::Unit::MS));
-	
-	auto noiseApp = CreateObject<MyNoiseMachine>(noiseDevice);
-	noiseNode->AddApplication(noiseApp);
-	noiseApp->SetStartTime(ns3::Time::FromInteger(150, ns3::Time::Unit::MS));
+	if (noiseNode != nullptr)
+	{
+		auto noiseApp = CreateObject<MyNoiseMachine>(noiseDevice.Get(0), LTE_BOOLEAN);
+		noiseNode->AddApplication(noiseApp);
+		noiseApp->SetStartTime(ns3::Time::FromInteger(150, ns3::Time::Unit::MS));
+	}
 }
 void removeCompleted(std::map<unsigned, unsigned>& recvMap, std::map<unsigned, unsigned>& sentMap, std::vector<unsigned>& completed)
 {
@@ -286,25 +410,54 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 {
 	auto observation = CreateObject<OpenGymTupleContainer>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-
-	auto fracContainerOne = CreateObject<OpenGymBoxContainer<float>>(shape), fracContainerTwo = CreateObject<OpenGymBoxContainer<float>>(shape);
-	if (sent[0] > 0)
+	
+	auto packetDropCategoryOne = CreateObject<OpenGymDiscreteContainer>(), packetDropCategoryTwo = CreateObject<OpenGymDiscreteContainer>();
+	ns3::Ptr<OpenGymDiscreteContainer> containers[2] = {packetDropCategoryOne, packetDropCategoryTwo};
+	
+	for (auto i = 0u; i < 2; ++i)
 	{
-		fracContainerOne->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[0]) + this->sendApplication->getActiveCount(0)) / sent[0]));
-		//fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
+		if (sent[i] > 0)
+		{
+			auto arrivalPercentage = static_cast<double>(recv[i] + this->sendApplication->getActiveCount(i)) / sent[i];
+			std::cout << "Arrival percentage: " << arrivalPercentage;
+			if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].fullRewardDropPercentage))
+			{
+				containers[i]->SetValue(0);
+			}
+			else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].smallRewardDropPercentage))
+			{
+				containers[i]->SetValue(1);
+			}
+			else
+			{
+				containers[i]->SetValue(2);
+			}
+			std::cout << ", leads to value " << containers[i]->GetValue() << std::endl;
+		}
+		else
+		{
+			std::cout << "No sent, so adding 0" << std::endl;
+			containers[i]->SetValue(0);
+		}
 	}
-	else 
-	{
-		fracContainerOne->AddValue(0.0f);
-	}
-	if (sent[1] > 0)
-	{
-		fracContainerTwo->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[1])  + this->sendApplication->getActiveCount(0)) / sent[1]));
-	}
-	else 
-	{
-		fracContainerTwo->AddValue(0.0f);
-	}
+	// auto fracContainerOne = CreateObject<OpenGymBoxContainer<float>>(shape), fracContainerTwo = CreateObject<OpenGymBoxContainer<float>>(shape);
+	// if (sent[0] > 0)
+	// {
+	// 	fracContainerOne->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[0]) + this->sendApplication->getActiveCount(0)) / sent[0]));
+	// 	//fracContainerOne->AddValue(std::min(1.0f, static_cast<float>(recv[0])/sent[0]));
+	// }
+	// else 
+	// {
+	// 	fracContainerOne->AddValue(1.0f);
+	// }
+	// if (sent[1] > 0)
+	// {
+	// 	fracContainerTwo->AddValue(std::max(0.0f, 1.0f - (static_cast<float>(recv[1])  + this->sendApplication->getActiveCount(0)) / sent[1]));
+	// }
+	// else 
+	// {
+	// 	fracContainerTwo->AddValue(1.0f);
+	// }
 
 	// auto sentSizeOne = CreateObject<OpenGymDiscreteContainer>(), sentSizeTwo = CreateObject<OpenGymDiscreteContainer>();
 	// sentSizeOne->SetValue(std::min(OUTPUT_SIZE_MAX, static_cast<unsigned>((sentSize[0] / 1024.0 / 1024) + 0.5))); // Convert to MiB to lower the value
@@ -326,11 +479,11 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 		indicatorTwo->SetValue(0);
 	else indicatorTwo->SetValue(1);
 
-	observation->Add(fracContainerOne); 
+	observation->Add(packetDropCategoryOne); 
 	//observation->Add(sentSizeOne); 
 	observation->Add(activeCountOne); 
 	observation->Add(indicatorOne);
-	observation->Add(fracContainerTwo); 
+	observation->Add(packetDropCategoryTwo); 
 	//observation->Add(sentSizeTwo); 
 	observation->Add(activeCountTwo); 
 	observation->Add(indicatorTwo);
@@ -338,7 +491,7 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	double cqi = 0;
 	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
 	{
-		cqi += (**it).GetObject<MobilityModel>()->GetDistanceFrom((**nodes.Begin()).GetObject<MobilityModel>());
+		cqi += (**it).GetObject<MobilityModel>()->GetDistanceFrom(sendNode.Get(0)->GetObject<MobilityModel>());
 	}
 	cqi = 1 - (cqi / (MAX_DISTANCE * nodes.GetN()));
 	CQI->AddValue(static_cast<float>(std::max(0.0, std::min(1.0, cqi))));
@@ -346,8 +499,8 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	observation->Add(CQI);
 
 	// std::cout << "End observationGet" << std::endl;
-	std::cout << "Outputting obs: [" << fracContainerOne->GetValue(0) << /*", " << sentSizeOne->GetValue() <<*/ ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
-	std::cout << fracContainerTwo->GetValue(0) << /*", " << sentSizeTwo->GetValue() << */", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
+	std::cout << "Outputting obs: [" << packetDropCategoryOne->GetValue() << /*", " << sentSizeOne->GetValue() <<*/ ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
+	std::cout << packetDropCategoryTwo->GetValue() << /*", " << sentSizeTwo->GetValue() << */", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
 	
 	return observation;
 }
@@ -358,8 +511,8 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	// But this is always correct. Issues with the other method might be hard to find.
 	auto space = CreateObject<OpenGymTupleSpace>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-	auto arrivalFractionOne = CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
-	auto arrivalFractionTwo = CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
+	auto arrivalFractionOne = CreateObject<OpenGymDiscreteSpace>(3);//CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
+	auto arrivalFractionTwo = CreateObject<OpenGymDiscreteSpace>(3);//CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
 	
 	//auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // Maximum is some max value, because we won't send limits::max()
 	//auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
@@ -420,4 +573,69 @@ std::string SimulationEnvironment::GetExtraInfo()
 {
 	// Nothing to add here, for now.
 	return "";
+}
+
+void SimulationEnvironment::SetupWifiEnvironment()
+{
+	nodes.Create(RECEIVER_NODE_COUNT);
+	NodeContainer nodeSet;
+	nodeSet.Create(2);
+	auto apNode = nodeSet.Get(0);
+	sendNode.Add(apNode);
+	noiseNode = nodeSet.Get(1);
+	// Install mobility
+	MobilityHelper mobility;
+	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
+	// Non-zero positions because randomwalk model has infinite loop if things spawn on the edge (or maybe only on the corners?)
+	// Changed position for both coordinates to avoid corners, 
+
+	// AP position (central in grid)
+	positionAlloc->Add (Vector (2.5, 2.5, 0.0));
+	// NoiseDevice Position
+	positionAlloc->Add (Vector (1.0, 1.0, 0.0));
+	// All other nodes.
+	positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (2.5, 0.1, 0.0)); positionAlloc->Add (Vector (4.9, 0.1, 0.0));
+	positionAlloc->Add (Vector (0.1, 2.5, 0.0));  positionAlloc->Add (Vector (4.9, 2.5, 0.0));
+	positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
+	mobility.SetPositionAllocator (positionAlloc);
+	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel"); 
+	mobility.Install(nodeSet);
+	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
+													"Mode", StringValue("Time"), 
+													"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
+													"Time", TimeValue(Seconds(2)),
+													"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
+													"Bounds", StringValue("0|5|0|5"));
+	mobility.Install (nodes);
+
+	NetDeviceContainer receiverDevices;
+	NetDeviceContainer senderDevice;
+	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
+	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
+	wifiPhy.SetChannel (wifiChannel.Create ());
+	wifiPhy.Set ("TxPowerStart", DoubleValue (1)); // dBm (1.26 mW)
+	wifiPhy.Set ("TxPowerEnd", DoubleValue (1));
+	wifiPhy.Set ("Frequency", UintegerValue (5180));
+	WifiHelper wifi;
+	wifi.SetRemoteStationManager("ns3::AarfWifiManager");
+	WifiMacHelper wifiMac;
+	wifiMac.SetType ("ns3::AdhocWifiMac");
+	receiverDevices = wifi.Install (wifiPhy, wifiMac, nodes);
+	wifiPhy.Set("TxPowerStart", DoubleValue(-70));
+	wifiPhy.Set("TxPowerEnd", DoubleValue(-70));
+	noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
+	nodes.Add(nodeSet.Get(0));
+	InternetStackHelper internet;
+	internet.SetIpv4StackInstall(true);
+	internet.SetIpv6StackInstall(false);
+	internet.Install (nodes);
+	Ipv4AddressHelper ipAddrs;
+	ipAddrs.SetBase ("192.168.0.0", "255.255.255.0");
+	ipAddrs.Assign (receiverDevices);
+	ipAddrs.Assign (senderDevice);
+	ipAddrs.SetBase("192.168.1.0", "255.255.255.0");
+	internet.Install(noiseNode);
+	ipAddrs.Assign(noiseDevice);
+	nodes.Add(noiseNode);
+	nodes.Add(apNode);
 }

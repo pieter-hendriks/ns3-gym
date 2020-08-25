@@ -4,11 +4,10 @@ then
 	(cd ../../ && . venv/bin/activate && ./waf --run "my_environment")
 	exit 0
 fi
-
 if [[ $1 = gdb ]]
 then
 	(cd ../../ && . venv/bin/activate && ./waf --run "my_environment" --command-template="gdb --args %s")
-else
+else 
 	echo "Unrecognized first argument"
 	exit 1
 fi

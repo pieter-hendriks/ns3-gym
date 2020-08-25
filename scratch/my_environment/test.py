@@ -50,23 +50,12 @@ class MyProcessor(Processor):
 		# print (obs)
 		return obs
 
+
 parser = argparse.ArgumentParser(description='Start simulation script on/off')
-parser.add_argument('--start',
-										type=int,
-										default=1,
-										help='Start ns-3 simulation script 0/1, Default: 1')
-parser.add_argument('--iterations',
-										type=int,
-										default=1,
-										help='Number of iterations, Default: 1')
-parser.add_argument('--port',
-										type=int,
-										default=5555,
-										help='Port to use for the connection.')
-parser.add_argument('--eval',
-										type=int,
-										default=0,
-										help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
+parser.add_argument('--start', type=int, default=1, help='Start ns-3 simulation script 0/1, Default: 1')
+parser.add_argument('--iterations', type=int, default=1, help='Number of iterations, Default: 1')
+parser.add_argument('--port', type=int, default=6969, help='Port to use for the connection.')
+parser.add_argument('--eval', type=int, default=0, help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
 parser.add_argument('--no_test', type=int, default=0, help='Set to 1 to disable testing')
 parser.add_argument('--save_weights', type=int, default=1, help='Set to 1 to save weights to file.')
 parser.add_argument('--load_weights', type=int, default=1, help='Set to 0 to disable weight loading.')
@@ -84,9 +73,7 @@ assert not (disable_test and runEvalOnly)
 simTime = 1250 # seconds
 stepTime = 5 # seconds
 seed = random.randint(0, 150000)
-simArgs = {"--simTime": simTime,
-					 "--stepTime": stepTime,
-					 "--testArg": 123}
+simArgs = {"--simTime": simTime, "--stepTime": stepTime, "--testArg": 123}
 debug = False
 
 
@@ -115,21 +102,21 @@ try:
 
 	model = Model(inputs=observation_input, outputs=actor)
 	memory = SequentialMemory(limit=50000, window_length=1)
-	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.2, value_test=0.05, nb_steps=10000)
+	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.2, value_test=0.05, nb_steps=50000)
 	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=100, target_model_update=1e-3, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
 	agent.compile(Adam(lr=1e-3), metrics=['mae'])
 
 	if args.load_weights:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=10000, visualize=False, verbose=1, nb_max_episode_steps=250)
+		agent.fit(env, nb_steps=50000, visualize=False, verbose=1, nb_max_episode_steps=50)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:
 			agent.save_weights('dqn_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
 
-		env.reset()
 		if not disable_test:
+			env = ns3env.Ns3Env(port=port, stepTime=stepTime, startSim=startSim, simSeed=seed, simArgs=simArgs, debug=debug)
 			agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
 	else:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))

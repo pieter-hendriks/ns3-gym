@@ -9,8 +9,9 @@
 #include "ns3/type-id.h"
 #include "ns3/opengym_env.h"
 #include "ns3/ptr.h"
-
+#include "ns3/lte-enb-net-device.h"
 #include "flow.h"
+#include "ns3/lte-helper.h"
 
 #include <map>
 
@@ -48,8 +49,11 @@ friend class TypeId;
 	void AddReceivedPacket(unsigned flowId, const FlowSpec& spec);
 
 	void setupDefaultEnvironment();
+	void Activate();
+	void CreateApplications();
 private:
-	void CreateApplications(ns3::Ptr<ns3::NetDevice> noiseDevice);
+	void SetupLTEEnvironment();
+	void SetupWifiEnvironment();
 	void readFlowSpec();
 	void handleCancelledFlows();
 	double interval;
@@ -62,6 +66,10 @@ private:
 	ns3::Ptr<MySender> sendApplication;
 	NodeContainer nodes;
 	ns3::Ptr<Node> noiseNode;
+	NetDeviceContainer noiseDevice;
+	ns3::Ptr<LteEnbNetDevice> enbDevice;
+	ns3::Ptr<LteHelper> lteHelper;
+	NodeContainer sendNode;
 };
 
 #endif

@@ -9,6 +9,7 @@
 #include "ns3/stats-module.h"
 #include "ns3/log.h"
 #include "ns3/log-macros-enabled.h"
+#include "ns3/lte-enb-net-device.h"
 
 #include <stdexcept>
 #include <ostream>
@@ -17,9 +18,11 @@
 #include <iomanip>
 #include <cstdlib>
 #include <algorithm> 
+
+#include "ns3/eps-bearer-tag.h"
 NS_LOG_COMPONENT_DEFINE("MySender");
 
-#define MAX_PACKET_SIZE 1500U
+#define MAX_PACKET_SIZE 1400u
 #define MIN_PACKET_SIZE 100U
 // TypeId MySender::GetTypeId (void)
 // {
@@ -33,7 +36,6 @@ MySender::MySender(ns3::Ptr<SimulationEnvironment> ptr, const std::vector<Ipv4Ad
 { 
 	NS_ASSERT(currentFlowGoal.size() == flowSpecs.size());
 	this->m_node = node;
-	this->m_pktSize = 576; 
 	for (auto i = 0u; i < flowSpecs.size(); ++i)
 	{
 		while (static_cast<unsigned>(currentFlowGoal[i]) > flowList[i].size())
@@ -85,6 +87,11 @@ void MySender::incrementActiveFlows(unsigned index, int32_t flowIncrement)
 	}
 }
 
+const std::vector<FlowSpec>& MySender::getFlowSpecs() const
+{
+	return flowSpecs;
+}
+
 void MySender::Send(const Flow& flow)
 {
 	// if application wasn't started yet, start it now.
@@ -101,13 +108,14 @@ void MySender::Send(const Flow& flow)
 	m_pktSize = std::min(MAX_PACKET_SIZE, std::max(static_cast<unsigned>(std::abs(packetSizeDist->operator()(generator))), MIN_PACKET_SIZE));
   Ptr<Packet> packet = Create<Packet>(m_pktSize);
 	// std::cout << "Returning packet size = " << m_pktSize << " bytes." << std::endl;
-
+	// std::cout << "Sending packet with size " << m_pktSize << " and from flow " << flow.getId() << std::endl;
 	FlowTag tag;
 	tag.setId(flow.getId());
 	tag.setFlowSpec(flow.getSpec());
 	packet->AddByteTag(tag);
 
 	this->SendPacket(packet);
+
 	env->AddSentPacket(flow.getId(), m_pktSize, flow.getSpec());
 	// Schedule delay = packetsize/throughput
 	if (!flow.isCompleted())

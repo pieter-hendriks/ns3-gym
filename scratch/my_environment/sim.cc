@@ -21,7 +21,6 @@
 
 #include "simulation/simulationenvironment.h"
 
-
 #include "ns3/core-module.h"
 #include "ns3/opengym-module.h"
 
@@ -48,7 +47,7 @@ main (int argc, char *argv[])
 	uint32_t simSeed = 1;
 	double simulationTime = 1250; //seconds
 	double envStepTime = 5; //seconds, ns3gym env step time interval
-	uint32_t openGymPort = 5555;
+	uint32_t openGymPort = 6969;
 	uint32_t testArg = 0;
 
 	CommandLine cmd;
@@ -77,10 +76,10 @@ main (int argc, char *argv[])
 	myGym->SetOpenGymInterface(openGymInterface);
 	NS_LOG_UNCOND ("Simulation start");
 	//std::function<void(MyGymEnv&, MyNode&, MyReceiverNode&)> check = &checkFunction;
-	Time::SetResolution(ns3::Time::Unit::US);
+	Time::SetResolution(ns3::Time::Unit::NS);
 	//Simulator::ScheduleNow(check);
 	//Simulator::ScheduleNow(&SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
-	Simulator::Schedule(ns3::Time::FromInteger(20, ns3::Time::Unit::MS), &SimulationEnvironment::setupDefaultEnvironment, &(*myGym));
+	Simulator::Schedule(ns3::Time::FromInteger(20, ns3::Time::Unit::MS), &SimulationEnvironment::Activate, &(*myGym));
 
 	Simulator::Stop (Seconds (simulationTime));
 	Simulator::Run ();
