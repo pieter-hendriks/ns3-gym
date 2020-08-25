@@ -1,0 +1,20 @@
+#!/bin/bash
+if [ $# -eq 0 ]; then
+	echo "Please enter a number parameter."
+	exit 1	
+fi
+if [ $1 == 'inf' ]; then
+	while :
+	do
+		./rungym
+	done
+else
+	x=$1
+	for ((n=0; n<x; n++)); do
+		./rungym
+	done
+fi
+
+
+
+

@@ -1,0 +1,3 @@
+#!/bin/bash
+trap 'kill $(jobs -p)' EXIT
+./rerun inf & pid1="$!" ; ./test "$@" ; kill $pid1
