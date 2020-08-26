@@ -81,8 +81,8 @@
 #define OUTPUT_SIZE_MAX 75u
 
 // Roughly calculated, only valid for current scenario.
-// Distance AP -> corner == sqrt(2.5^2 + 2.5^2) ~= 3.6
-#define MAX_DISTANCE 3.6 
+// Distance AP -> corner == sqrt(7.5^2 + 7.5^2) ~= 10.1
+#define MAX_DISTANCE 10.1 
 
 
 using namespace ns3;
@@ -185,21 +185,21 @@ void SimulationEnvironment::SetupLTEEnvironment()
   // Install Mobility Model
   Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 	// // AP position (central in grid)
-	positionAlloc->Add (Vector (2.5, 2.5, 0.0));
+	positionAlloc->Add (Vector (7.5, 7.5, 0.0));
 	// // All other nodes.
-	positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (2.5, 0.1, 0.0)); positionAlloc->Add (Vector (4.9, 0.1, 0.0));
-	positionAlloc->Add (Vector (0.1, 2.5, 0.0));  positionAlloc->Add (Vector (4.9, 2.5, 0.0));
-	positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
+	positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (7.5, 0.1, 0.0)); positionAlloc->Add (Vector (14.9, 0.1, 0.0));
+	positionAlloc->Add (Vector (0.1, 7.5, 0.0));  positionAlloc->Add (Vector (14.9, 7.5, 0.0));
+	positionAlloc->Add (Vector (0.1, 14.9, 0.0)); positionAlloc->Add (Vector (7.5, 14.9, 0.0)); positionAlloc->Add (Vector (14.9, 14.9, 0.0));
   MobilityHelper mobility;
   mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
   mobility.SetPositionAllocator(positionAlloc);
   mobility.Install(sendNode);
 	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
 														"Mode", StringValue("Time"), 
-														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
+														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=3]"), 
 														"Time", TimeValue(Seconds(2)),
 														"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
-														"Bounds", StringValue("0|5|0|5"));
+														"Bounds", StringValue("0|15|0|15"));
   mobility.Install(ueNodes);
 
   // Install LTE Devices to the nodes
@@ -229,12 +229,12 @@ void SimulationEnvironment::SetupLTEEnvironment()
 
 	for (auto x = ueNodes.Begin(); x != ueNodes.End(); ++x)
 	{
-		nodes.Add(*x);
+		nodes.Add(*x);	
 	}
 }
 
 // #include "lte_env.h"
-// #include "wifi_env.h"
+#include "wifi_env.h"
 
 void SimulationEnvironment::setupDefaultEnvironment()
 {
@@ -517,7 +517,7 @@ void SimulationEnvironment::SetupWifiEnvironment()
 	positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
 	mobility.SetPositionAllocator (positionAlloc);
 	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel"); 
-	mobility.Install(nodeSet);
+	mobility.Install(apNode);
 	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
 													"Mode", StringValue("Time"), 
 													"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
@@ -525,6 +525,7 @@ void SimulationEnvironment::SetupWifiEnvironment()
 													"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
 													"Bounds", StringValue("0|5|0|5"));
 	mobility.Install (nodes);
+	mobility.Install (noiseNode);
 
 	NetDeviceContainer receiverDevices;
 	NetDeviceContainer senderDevice;
@@ -537,9 +538,10 @@ void SimulationEnvironment::SetupWifiEnvironment()
 	WifiHelper wifi;
 	wifi.SetRemoteStationManager("ns3::AarfWifiManager");
 	WifiMacHelper wifiMac;
-	wifiMac.SetType ("ns3::AdhocWifiMac");
-	receiverDevices = wifi.Install (wifiPhy, wifiMac, nodes);
+	wifiMac.SetType ("ns3::ApWifiMac");
 	senderDevice = wifi.Install(wifiPhy, wifiMac, sendNode);
+	wifiMac.SetType("ns3::StaWifiMac");
+	receiverDevices = wifi.Install (wifiPhy, wifiMac, nodes);
 	wifiPhy.Set("TxPowerStart", DoubleValue(-70));
 	wifiPhy.Set("TxPowerEnd", DoubleValue(-70));
 	noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);
