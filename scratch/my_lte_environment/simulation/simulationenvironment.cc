@@ -233,7 +233,7 @@ void SimulationEnvironment::SetupLTEEnvironment()
 	}
 }
 
-// #include "lte_env.h"
+#include "lte_env.h"
 // #include "wifi_env.h"
 
 void SimulationEnvironment::setupDefaultEnvironment()

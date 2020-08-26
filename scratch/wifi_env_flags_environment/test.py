@@ -44,7 +44,7 @@ class MyProcessor(Processor):
 	
 	def process_observation(self, obs):
 		if not obs:
-			obs = [0, 0, 1, 0, 0, 1, 0.5]
+			obs = [1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0.5]
 		else:
 			# Unpack/flatten the box spaces to singular values
 			fn = lambda x: x if type(x) in [int, float] else x[0]
@@ -57,7 +57,7 @@ class MyProcessor(Processor):
 parser = argparse.ArgumentParser(description='Start simulation script on/off')
 parser.add_argument('--start', type=int, default=1, help='Start ns-3 simulation script 0/1, Default: 1')
 parser.add_argument('--iterations', type=int, default=1, help='Number of iterations, Default: 1')
-parser.add_argument('--port', type=int, default=5560, help='Port to use for the connection.')
+parser.add_argument('--port', type=int, default=5561, help='Port to use for the connection.')
 parser.add_argument('--eval', type=int, default=0, help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
 parser.add_argument('--no_test', type=int, default=0, help='Set to 1 to disable testing')
 parser.add_argument('--save_weights', type=int, default=1, help='Set to 1 to save weights to file.')
@@ -123,8 +123,7 @@ try:
 	if args.load_weights:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=50000, visualize=False, verbose=1, nb_max_episode_steps=50)
-		agent.fit(env, nb_steps=50000, visualize=False, verbose=1, nb_max_episode_steps=65)
+		agent.fit(env, nb_steps=50000, visualize=False, verbose=2, nb_max_episode_steps=50)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:

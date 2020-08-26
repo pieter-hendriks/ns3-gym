@@ -354,32 +354,34 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	auto observation = CreateObject<OpenGymTupleContainer>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
 	
-	auto packetDropCategoryOne = CreateObject<OpenGymDiscreteContainer>(), packetDropCategoryTwo = CreateObject<OpenGymDiscreteContainer>();
-	ns3::Ptr<OpenGymDiscreteContainer> containers[2] = {packetDropCategoryOne, packetDropCategoryTwo};
+	auto goodPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0);
+	auto goodPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0);
+	ns3::Ptr<OpenGymDiscreteContainer> containers[6] = {goodPerfCatOne, okayPerfCatOne, badPerfCatOne, goodPerfCatTwo, okayPerfCatTwo, badPerfCatTwo};
 	
-	for (auto i = 0u; i < 2; ++i)
+	for (auto i = 0u; i < 6; i += 3)
 	{
 		if (sent[i] > 0)
 		{
 			auto arrivalPercentage = static_cast<double>(recv[i] + this->sendApplication->getActiveCount(i)) / sent[i];
 			if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].fullRewardDropPercentage))
 			{
-				containers[i]->SetValue(0);
+				containers[i]->SetValue(1);
 			}
 			else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].smallRewardDropPercentage))
 			{
-				containers[i]->SetValue(1);
+				containers[i+1]->SetValue(1);
 			}
 			else
 			{
-				containers[i]->SetValue(2);
+				containers[i+2]->SetValue(1);
 			}
 		}
 		else
 		{
-			containers[i]->SetValue(0);
+			containers[i]->SetValue(1);
 		}
 	}
+	auto packetDropCategoryOne = CreateObject<OpenGymDiscreteContainer>(), packetDropCategoryTwo = CreateObject<OpenGymDiscreteContainer>();
 
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
 	activeCountOne->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(0)));
@@ -396,14 +398,26 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 		indicatorTwo->SetValue(0);
 	else indicatorTwo->SetValue(1);
 
-	observation->Add(packetDropCategoryOne); 
-	//observation->Add(sentSizeOne); 
+	observation->Add(goodPerfCatOne);
+	observation->Add(okayPerfCatOne);
+	observation->Add(badPerfCatOne);
 	observation->Add(activeCountOne); 
 	observation->Add(indicatorOne);
+	
+	observation->Add(goodPerfCatTwo);
+	observation->Add(okayPerfCatTwo);
+	observation->Add(badPerfCatTwo);
+	observation->Add(activeCountTwo); 
+	observation->Add(indicatorTwo);
+	
+	
+
+	/*observation->Add(packetDropCategoryOne); 
+	//observation->Add(sentSizeOne); 
 	observation->Add(packetDropCategoryTwo); 
 	//observation->Add(sentSizeTwo); 
 	observation->Add(activeCountTwo); 
-	observation->Add(indicatorTwo);
+	observation->Add(indicatorTwo);*/
 
 	double cqi = 0;
 	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
@@ -415,10 +429,6 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 
 	observation->Add(CQI);
 
-	// std::cout << "End observationGet" << std::endl;
-	std::cout << "Outputting obs: [" << packetDropCategoryOne->GetValue() << /*", " << sentSizeOne->GetValue() <<*/ ", " << activeCountOne->GetValue() << ", " << indicatorOne->GetValue() << ", ";
-	std::cout << packetDropCategoryTwo->GetValue() << /*", " << sentSizeTwo->GetValue() << */", " << activeCountTwo->GetValue() << ", " << indicatorTwo->GetValue() << ", " << CQI->GetValue(0) << "]" << std::endl;
-	
 	sentSize[0] = 0; sentSize[1] = 0;
 	return observation;
 }
@@ -429,11 +439,8 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	// But this is always correct. Issues with the other method might be hard to find.
 	auto space = CreateObject<OpenGymTupleSpace>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-	auto arrivalFractionOne = CreateObject<OpenGymDiscreteSpace>(3);//CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
-	auto arrivalFractionTwo = CreateObject<OpenGymDiscreteSpace>(3);//CreateObject<OpenGymBoxSpace>(0.0f, 1.0f, shape, TypeNameGet<float>());
-	
-	//auto sentSizeOne = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // Maximum is some max value, because we won't send limits::max()
-	//auto sentSizeTwo = CreateObject<OpenGymDiscreteSpace>(OUTPUT_SIZE_MAX); // We also return the size in some unit (MiB) other than bytes, so value is pretty low.
+	auto goodPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1);
+	auto goodPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1);
 	
 	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // Max value, beyond that we just indicate n. 
 	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // This is far more than would be productive, so should be plenty.
@@ -443,11 +450,16 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	
 	auto cqi = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
 
-	space->Add(arrivalFractionOne); 
+	space->Add(goodPerfCatOne); 
+	space->Add(okayPerfCatOne);
+	space->Add(badPerfCatOne);
 	//space->Add(sentSizeOne); 
 	space->Add(activeCountOne); 
 	space->Add(zeroIndicatorOne);
-	space->Add(arrivalFractionTwo); 
+	
+	space->Add(goodPerfCatTwo);
+	space->Add(okayPerfCatTwo);
+	space->Add(badPerfCatTwo);
 	//space->Add(sentSizeTwo); 
 	space->Add(activeCountTwo); 
 	space->Add(zeroIndicatorTwo);

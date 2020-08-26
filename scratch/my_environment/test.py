@@ -124,7 +124,6 @@ try:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
 		agent.fit(env, nb_steps=50000, visualize=False, verbose=1, nb_max_episode_steps=50)
-		agent.fit(env, nb_steps=50000, visualize=False, verbose=1, nb_max_episode_steps=65)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:
