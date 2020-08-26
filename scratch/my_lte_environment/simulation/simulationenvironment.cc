@@ -199,7 +199,7 @@ void SimulationEnvironment::SetupLTEEnvironment()
 														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=3]"), 
 														"Time", TimeValue(Seconds(2)),
 														"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
-														"Bounds", StringValue("0|5|0|5"));
+														"Bounds", StringValue("0|15|0|15"));
   mobility.Install(ueNodes);
 
   // Install LTE Devices to the nodes
