@@ -82,7 +82,7 @@
 
 // Roughly calculated, only valid for current scenario.
 // Distance AP -> corner == sqrt(7.5^2 + 7.5^2) ~= 10.1
-#define MAX_DISTANCE 10.1 
+#define MAX_DISTANCE 10.1
 
 
 using namespace ns3;

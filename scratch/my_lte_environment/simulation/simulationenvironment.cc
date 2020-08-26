@@ -81,8 +81,8 @@
 #define OUTPUT_SIZE_MAX 75u
 
 // Roughly calculated, only valid for current scenario.
-// Distance AP -> corner == sqrt(2.5^2 + 2.5^2) ~= 3.6
-#define MAX_DISTANCE 3.6 
+// Distance AP -> corner == sqrt(7.5^2 + 7.5^2) ~= 10.1
+#define MAX_DISTANCE 10.1
 
 
 using namespace ns3;
@@ -196,7 +196,7 @@ void SimulationEnvironment::SetupLTEEnvironment()
   mobility.Install(sendNode);
 	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
 														"Mode", StringValue("Time"), 
-														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
+														"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=3]"), 
 														"Time", TimeValue(Seconds(2)),
 														"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
 														"Bounds", StringValue("0|5|0|5"));
@@ -526,7 +526,7 @@ void SimulationEnvironment::SetupWifiEnvironment()
 													"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
 													"Time", TimeValue(Seconds(2)),
 													"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
-													"Bounds", StringValue("0|5|0|5"));
+													"Bounds", StringValue("0|15|0|15"));
 	mobility.Install (nodes);
 
 	NetDeviceContainer receiverDevices;
