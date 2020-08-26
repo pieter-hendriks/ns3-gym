@@ -409,15 +409,6 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	observation->Add(badPerfCatTwo);
 	observation->Add(activeCountTwo); 
 	observation->Add(indicatorTwo);
-	
-	
-
-	/*observation->Add(packetDropCategoryOne); 
-	//observation->Add(sentSizeOne); 
-	observation->Add(packetDropCategoryTwo); 
-	//observation->Add(sentSizeTwo); 
-	observation->Add(activeCountTwo); 
-	observation->Add(indicatorTwo);*/
 
 	double cqi = 0;
 	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
