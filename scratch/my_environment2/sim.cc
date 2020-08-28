@@ -47,7 +47,7 @@ main (int argc, char *argv[])
 	uint32_t simSeed = 1;
 	double simulationTime = 1250; //seconds
 	double envStepTime = 5; //seconds, ns3gym env step time interval
-	uint32_t openGymPort = 5560;
+	uint32_t openGymPort = 5555;
 	uint32_t testArg = 0;
 
 	CommandLine cmd;

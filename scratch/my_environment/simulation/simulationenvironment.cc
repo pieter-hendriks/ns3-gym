@@ -185,11 +185,11 @@ void SimulationEnvironment::SetupLTEEnvironment()
   // Install Mobility Model
   Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 	// // AP position (central in grid)
-	positionAlloc->Add (Vector (7.5, 7.5, 0.0));
+	positionAlloc->Add (Vector (2.5, 2.5, 0.0));
 	// // All other nodes.
-	positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (7.5, 0.1, 0.0)); positionAlloc->Add (Vector (14.9, 0.1, 0.0));
-	positionAlloc->Add (Vector (0.1, 7.5, 0.0));  positionAlloc->Add (Vector (14.9, 7.5, 0.0));
-	positionAlloc->Add (Vector (0.1, 14.9, 0.0)); positionAlloc->Add (Vector (7.5, 14.9, 0.0)); positionAlloc->Add (Vector (14.9, 14.9, 0.0));
+	positionAlloc->Add (Vector (0.1, 0.1, 0.0)); positionAlloc->Add (Vector (2.5, 0.1, 0.0)); positionAlloc->Add (Vector (4.9, 0.1, 0.0));
+	positionAlloc->Add (Vector (0.1, 2.5, 0.0));  positionAlloc->Add (Vector (4.9, 2.5, 0.0));
+	positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
   MobilityHelper mobility;
   mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
   mobility.SetPositionAllocator(positionAlloc);
@@ -229,7 +229,7 @@ void SimulationEnvironment::SetupLTEEnvironment()
 
 	for (auto x = ueNodes.Begin(); x != ueNodes.End(); ++x)
 	{
-		nodes.Add(*x);	
+		nodes.Add(*x);
 	}
 }
 
@@ -348,37 +348,42 @@ bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 	//std::cout << "Returning after action." << std::endl;
 	return true;
 }
-
 Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 {
+	std::cout << "FlowCounts: {" << this->sendApplication->getActiveCount(0) << ", " << this->sendApplication->getActiveCount(1) << "}." << std::endl;
 	auto observation = CreateObject<OpenGymTupleContainer>();
-	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
 	
-	auto goodPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0);
-	auto goodPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0);
-	ns3::Ptr<OpenGymDiscreteContainer> containers[6] = {goodPerfCatOne, okayPerfCatOne, badPerfCatOne, goodPerfCatTwo, okayPerfCatTwo, badPerfCatTwo};
+	auto perfPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), goodPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0);
+	auto perfPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), goodPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0);
+	ns3::Ptr<OpenGymDiscreteContainer> containers[8] = {perfPerfCatOne, goodPerfCatOne, okayPerfCatOne, badPerfCatOne, perfPerfCatTwo, goodPerfCatTwo, okayPerfCatTwo, badPerfCatTwo};
 	
-	for (auto i = 0u; i < 6; i += 3)
+	for (auto i = 0u; i < 8; ++i) 
+		containers[i]->SetValue(0);
+	
+	for (auto i = 0u; i < 6; i += 4)
 	{
-		if (sent[i] > 0)
+		if (sent[i/4] > 0)
 		{
-			auto arrivalPercentage = static_cast<double>(recv[i] + this->sendApplication->getActiveCount(i)) / sent[i];
-			if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].fullRewardDropPercentage))
-			{
+			auto arrivalPercentage = static_cast<double>(recv[i/4]) / sent[i/4];
+			std::cout << "Category " << i/4 << " arrival percent = " << arrivalPercentage << std::endl;
+			if (arrivalPercentage >= 0.99999999)
 				containers[i]->SetValue(1);
-			}
-			else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].smallRewardDropPercentage))
+			else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i/4].fullRewardDropPercentage))
 			{
 				containers[i+1]->SetValue(1);
 			}
-			else
+			else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i/4].smallRewardDropPercentage))
 			{
 				containers[i+2]->SetValue(1);
+			}
+			else
+			{
+				containers[i+3]->SetValue(1);
 			}
 		}
 		else
 		{
-			containers[i]->SetValue(1);
+			std::cout << "Category " << i/4 << " arrival percentage not relevant." << std::endl;
 		}
 	}
 	auto packetDropCategoryOne = CreateObject<OpenGymDiscreteContainer>(), packetDropCategoryTwo = CreateObject<OpenGymDiscreteContainer>();
@@ -386,7 +391,6 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
 	activeCountOne->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(0)));
 	activeCountTwo->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(1)));
-	auto CQI = CreateObject<OpenGymBoxContainer<float>>(shape); 
 
 	auto indicatorOne = CreateObject<OpenGymDiscreteContainer>(), indicatorTwo = CreateObject<OpenGymDiscreteContainer>();
 	// Add indicator value when doing nothing, should allow for easier re-starts and faster learning
@@ -398,29 +402,25 @@ Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 		indicatorTwo->SetValue(0);
 	else indicatorTwo->SetValue(1);
 
+	observation->Add(perfPerfCatOne);
 	observation->Add(goodPerfCatOne);
 	observation->Add(okayPerfCatOne);
 	observation->Add(badPerfCatOne);
-	observation->Add(activeCountOne); 
+	//observation->Add(activeCountOne); 
 	observation->Add(indicatorOne);
 	
+	observation->Add(perfPerfCatTwo);
 	observation->Add(goodPerfCatTwo);
 	observation->Add(okayPerfCatTwo);
 	observation->Add(badPerfCatTwo);
-	observation->Add(activeCountTwo); 
+	//observation->Add(activeCountTwo); 
 	observation->Add(indicatorTwo);
-
-	double cqi = 0;
-	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
-	{
-		cqi += (**it).GetObject<MobilityModel>()->GetDistanceFrom(sendNode.Get(0)->GetObject<MobilityModel>());
-	}
-	cqi = 1 - (cqi / (MAX_DISTANCE * nodes.GetN()));
-	CQI->AddValue(static_cast<float>(std::max(0.0, std::min(1.0, cqi))));
-
-	observation->Add(CQI);
-
+	
+	std::cout << "{" << perfPerfCatOne->GetValue() << ", " << goodPerfCatOne->GetValue() << ", " << okayPerfCatOne->GetValue() << ", " << badPerfCatOne->GetValue() /*<< ", " << activeCountOne->GetValue()*/ << ", " << indicatorOne->GetValue() << ", ";
+	std::cout << perfPerfCatTwo->GetValue() << ", " << goodPerfCatTwo->GetValue() << ", " << okayPerfCatTwo->GetValue() << ", " << badPerfCatTwo->GetValue() /*<< ", " << activeCountTwo->GetValue()*/ << ", " << indicatorTwo->GetValue() << "}" << std::endl;
 	sentSize[0] = 0; sentSize[1] = 0;
+	sent[0] = 0; sent[1] = 0;
+	recv[0] = 0; recv[1] = 0;
 	return observation;
 }
 
@@ -430,8 +430,8 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	// But this is always correct. Issues with the other method might be hard to find.
 	auto space = CreateObject<OpenGymTupleSpace>();
 	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-	auto goodPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1);
-	auto goodPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1);
+	auto perfPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), goodPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1);
+	auto perfPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), goodPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1);
 	
 	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // Max value, beyond that we just indicate n. 
 	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // This is far more than would be productive, so should be plenty.
@@ -439,23 +439,22 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 	auto zeroIndicatorOne = CreateObject<OpenGymDiscreteSpace>(1);
 	auto zeroIndicatorTwo = CreateObject<OpenGymDiscreteSpace>(1);
 	
-	auto cqi = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
-
+	space->Add(perfPerfCatOne);
 	space->Add(goodPerfCatOne); 
 	space->Add(okayPerfCatOne);
 	space->Add(badPerfCatOne);
 	//space->Add(sentSizeOne); 
-	space->Add(activeCountOne); 
+	//space->Add(activeCountOne); 
 	space->Add(zeroIndicatorOne);
 	
+	space->Add(perfPerfCatTwo);
 	space->Add(goodPerfCatTwo);
 	space->Add(okayPerfCatTwo);
 	space->Add(badPerfCatTwo);
 	//space->Add(sentSizeTwo); 
-	space->Add(activeCountTwo); 
+	//space->Add(activeCountTwo); 
 	space->Add(zeroIndicatorTwo);
 
-	space->Add(cqi);
 
 	return space;
 }
@@ -472,7 +471,7 @@ float SimulationEnvironment::GetReward()
 	for (auto i = 0u; i < 2; ++i)
 	{
 		auto points = score[i]; //, sentCount = sent[i], recvCount = recv[i];
-		score[i] = 0; sent[i] = 0; recv[i] = 0;
+		score[i] = 0; 
 		ret += points;
 	}
 	// // Negative reward for not allowing any flows, should motivate agent to keep some open.
@@ -520,7 +519,7 @@ void SimulationEnvironment::SetupWifiEnvironment()
 	positionAlloc->Add (Vector (0.1, 4.9, 0.0)); positionAlloc->Add (Vector (2.5, 4.9, 0.0)); positionAlloc->Add (Vector (4.9, 4.9, 0.0));
 	mobility.SetPositionAllocator (positionAlloc);
 	mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel"); 
-	mobility.Install(apNode);
+	mobility.Install(nodeSet);
 	mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel", 
 													"Mode", StringValue("Time"), 
 													"Speed", StringValue("ns3::UniformRandomVariable[Min=0|Max=1.5]"), 
@@ -528,7 +527,6 @@ void SimulationEnvironment::SetupWifiEnvironment()
 													"Direction", StringValue ("ns3::UniformRandomVariable[Min=0.0|Max=6.283184]"),
 													"Bounds", StringValue("0|5|0|5"));
 	mobility.Install (nodes);
-	mobility.Install (noiseNode);
 
 	NetDeviceContainer receiverDevices;
 	NetDeviceContainer senderDevice;
@@ -541,10 +539,9 @@ void SimulationEnvironment::SetupWifiEnvironment()
 	WifiHelper wifi;
 	wifi.SetRemoteStationManager("ns3::AarfWifiManager");
 	WifiMacHelper wifiMac;
-	wifiMac.SetType ("ns3::ApWifiMac");
-	senderDevice = wifi.Install(wifiPhy, wifiMac, sendNode);
-	wifiMac.SetType("ns3::StaWifiMac");
+	wifiMac.SetType ("ns3::AdhocWifiMac");
 	receiverDevices = wifi.Install (wifiPhy, wifiMac, nodes);
+	senderDevice = wifi.Install(wifiPhy, wifiMac, sendNode);
 	wifiPhy.Set("TxPowerStart", DoubleValue(-70));
 	wifiPhy.Set("TxPowerEnd", DoubleValue(-70));
 	noiseDevice = wifi.Install(wifiPhy, wifiMac, noiseNode);

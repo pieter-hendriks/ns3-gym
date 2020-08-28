@@ -318,7 +318,11 @@ void SimulationEnvironment::StateRead()
 	//std::cout << "Step " << progress++ << std::endl;
 	//std::cout << "Stateread!" << std::endl;
 	Simulator::Schedule(Time::FromDouble(interval, Time::S), &SimulationEnvironment::StateRead, this);
+	std::cout << "Notify 0." << std::endl;
 	Notify();
+	std::cout << "Notify 1." << std::endl;
+	Notify();
+	std::cout << "Notified!" << std::endl;
 }	
 
 void SimulationEnvironment::HandleFlowCancellation(std::vector<unsigned>& indices, const FlowSpec& spec)
@@ -330,132 +334,95 @@ Ptr<OpenGymSpace> SimulationEnvironment::GetActionSpace()
 {
 	Ptr<OpenGymTupleSpace> space = CreateObject<OpenGymTupleSpace>();
 	space->Add(CreateObject<OpenGymDiscreteSpace>(65));
-	space->Add(CreateObject<OpenGymDiscreteSpace>(65));
 	return space;
 }
 bool SimulationEnvironment::ExecuteActions(Ptr<OpenGymDataContainer> action)
 {
+	static auto index = 0u;
 	auto space = DynamicCast<OpenGymTupleContainer>(action);
-	auto actionOne = DynamicCast<OpenGymDiscreteContainer>(space->Get(0));
-	auto actionTwo = DynamicCast<OpenGymDiscreteContainer>(space->Get(1));
-	int valueOne = actionOne->GetValue(), valueTwo = actionTwo->GetValue();
+	auto actionOne = DynamicCast<OpenGymDiscreteContainer>(space->Get(index));
+	int valueOne = actionOne->GetValue();
 
 	this->handleCancelledFlows();
 
-	//std::cout << "Executing action = " << flowCount << std::endl;
-	this->sendApplication->incrementActiveFlows(0, valueOne);
-	this->sendApplication->incrementActiveFlows(1, valueTwo);
-	//std::cout << "Returning after action." << std::endl;
+	this->sendApplication->incrementActiveFlows(index, valueOne);
 	return true;
 }
 
 Ptr<OpenGymDataContainer> SimulationEnvironment::GetObservation()
 {
 	auto observation = CreateObject<OpenGymTupleContainer>();
-	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
+	static auto index = 0u;
+	auto flowIndex = CreateObject<OpenGymDiscreteContainer>(1);
+	flowIndex->SetValue(index);
+	auto perfPerf = CreateObject<OpenGymDiscreteContainer>(1), goodPerf = CreateObject<OpenGymDiscreteContainer>(1), okayPerf = CreateObject<OpenGymDiscreteContainer>(1), badPerf = CreateObject<OpenGymDiscreteContainer>(1);
+	ns3::Ptr<OpenGymDiscreteContainer> containers[4] = {perfPerf, goodPerf, okayPerf, badPerf};
+	auto indicator = CreateObject<OpenGymDiscreteContainer>(1);
+	indicator->SetValue(0);
+
+	for (auto i = 0u; i < 4; ++i) 
+		containers[i]->SetValue(0);
 	
-	auto goodPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatOne = CreateObject<OpenGymDiscreteContainer>(0);
-	auto goodPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), okayPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0), badPerfCatTwo = CreateObject<OpenGymDiscreteContainer>(0);
-	ns3::Ptr<OpenGymDiscreteContainer> containers[6] = {goodPerfCatOne, okayPerfCatOne, badPerfCatOne, goodPerfCatTwo, okayPerfCatTwo, badPerfCatTwo};
-	
-	for (auto i = 0u; i < 6; i += 3)
+	if (sent[index] > 0)
 	{
-		if (sent[i] > 0)
+		auto arrivalPercentage = static_cast<double>(recv[index]) / sent[index];
+		std::cout << "Category " << index << " arrival percent = " << arrivalPercentage << std::endl;
+		if (arrivalPercentage >= 0.99999)
+			containers[0]->SetValue(1);
+		else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[index].fullRewardDropPercentage))
 		{
-			auto arrivalPercentage = static_cast<double>(recv[i] + this->sendApplication->getActiveCount(i)) / sent[i];
-			if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].fullRewardDropPercentage))
-			{
-				containers[i]->SetValue(1);
-			}
-			else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[i].smallRewardDropPercentage))
-			{
-				containers[i+1]->SetValue(1);
-			}
-			else
-			{
-				containers[i+2]->SetValue(1);
-			}
+			containers[1]->SetValue(1);
+		}
+		else if (arrivalPercentage > (1.0 - this->sendApplication->getFlowSpecs()[index].smallRewardDropPercentage))
+		{
+			containers[2]->SetValue(1);
 		}
 		else
 		{
-			containers[i]->SetValue(1);
+			containers[3]->SetValue(1);
 		}
 	}
-	auto packetDropCategoryOne = CreateObject<OpenGymDiscreteContainer>(), packetDropCategoryTwo = CreateObject<OpenGymDiscreteContainer>();
-
-	auto activeCountOne = CreateObject<OpenGymDiscreteContainer>(), activeCountTwo = CreateObject<OpenGymDiscreteContainer>();
-	activeCountOne->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(0)));
-	activeCountTwo->SetValue(std::min(ACTIVE_COUNT_MAX, this->sendApplication->getActiveGoal(1)));
-	auto CQI = CreateObject<OpenGymBoxContainer<float>>(shape); 
-
-	auto indicatorOne = CreateObject<OpenGymDiscreteContainer>(), indicatorTwo = CreateObject<OpenGymDiscreteContainer>();
-	// Add indicator value when doing nothing, should allow for easier re-starts and faster learning
-	if (this->sendApplication->getActiveCount(0) != 0)
-		indicatorOne->SetValue(0); 
-	else indicatorOne->SetValue(1); 
-
-	if (this->sendApplication->getActiveCount(1) != 0)
-		indicatorTwo->SetValue(0);
-	else indicatorTwo->SetValue(1);
-
-	observation->Add(goodPerfCatOne);
-	observation->Add(okayPerfCatOne);
-	observation->Add(badPerfCatOne);
-	observation->Add(activeCountOne); 
-	observation->Add(indicatorOne);
-	
-	observation->Add(goodPerfCatTwo);
-	observation->Add(okayPerfCatTwo);
-	observation->Add(badPerfCatTwo);
-	observation->Add(activeCountTwo); 
-	observation->Add(indicatorTwo);
-
-	double cqi = 0;
-	for (auto it = nodes.Begin() + 1; it != nodes.End(); ++it)
+	else
 	{
-		cqi += (**it).GetObject<MobilityModel>()->GetDistanceFrom(sendNode.Get(0)->GetObject<MobilityModel>());
+		std::cout << "Category " << index << " arrival percentage not relevant." << std::endl;
+		indicator->SetValue(1);
 	}
-	cqi = 1 - (cqi / (MAX_DISTANCE * nodes.GetN()));
-	CQI->AddValue(static_cast<float>(std::max(0.0, std::min(1.0, cqi))));
 
-	observation->Add(CQI);
-
-	sentSize[0] = 0; sentSize[1] = 0;
+	observation->Add(flowIndex);
+	observation->Add(perfPerf);
+	observation->Add(goodPerf);
+	observation->Add(okayPerf);
+	observation->Add(badPerf);
+	observation->Add(indicator);
+	
+	std::cout << "Observation: " << flowIndex << perfPerf << goodPerf << okayPerf << badPerf << indicator << std::endl;
+	
+	if (index == 1)
+	{
+		sentSize[0] = 0; sentSize[1] = 0;
+		sent[0] = 0; sent[1] = 0;
+		recv[0] = 0; recv[1] = 0;
+		index = 0u;
+	}
+	else index = 1u;
+	
 	return observation;
 }
-
 Ptr<OpenGymSpace> SimulationEnvironment::GetObservationSpace()
 {
 	// Not sure if all the duplication is necessary - might be able to just do space, category, fill in cat, then add cat twice. 
 	// But this is always correct. Issues with the other method might be hard to find.
 	auto space = CreateObject<OpenGymTupleSpace>();
-	std::vector<unsigned> shape; shape.push_back(1); shape.push_back(1);
-	auto goodPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1);
-	auto goodPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatTwo = CreateObject<OpenGymDiscreteSpace>(1);
-	
-	auto activeCountOne = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // Max value, beyond that we just indicate n. 
-	auto activeCountTwo = CreateObject<OpenGymDiscreteSpace>(ACTIVE_COUNT_MAX); // This is far more than would be productive, so should be plenty.
-	
+	auto indexIndicator = CreateObject<OpenGymDiscreteSpace>(1);
+	auto perfPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), goodPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), okayPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1), badPerfCatOne = CreateObject<OpenGymDiscreteSpace>(1);
 	auto zeroIndicatorOne = CreateObject<OpenGymDiscreteSpace>(1);
-	auto zeroIndicatorTwo = CreateObject<OpenGymDiscreteSpace>(1);
 	
-	auto cqi = CreateObject<OpenGymBoxSpace>(0, 1, shape, TypeNameGet<float>());
-
+	space->Add(indexIndicator);
+	space->Add(perfPerfCatOne);
 	space->Add(goodPerfCatOne); 
 	space->Add(okayPerfCatOne);
 	space->Add(badPerfCatOne);
-	//space->Add(sentSizeOne); 
-	space->Add(activeCountOne); 
 	space->Add(zeroIndicatorOne);
-	
-	space->Add(goodPerfCatTwo);
-	space->Add(okayPerfCatTwo);
-	space->Add(badPerfCatTwo);
-	//space->Add(sentSizeTwo); 
-	space->Add(activeCountTwo); 
-	space->Add(zeroIndicatorTwo);
-
-	space->Add(cqi);
 
 	return space;
 }
@@ -466,27 +433,27 @@ bool SimulationEnvironment::GetGameOver()
 
 float SimulationEnvironment::GetReward()
 {
+	static auto reward = 0.0f;
+	static auto index = 0u;
 	// Super simple reward function, let's try how well this does.
-	float ret = 0;
-	// Hard-coded for two flow categories
-	for (auto i = 0u; i < 2; ++i)
+	if (index == 0)
 	{
-		auto points = score[i]; //, sentCount = sent[i], recvCount = recv[i];
-		score[i] = 0; sent[i] = 0; recv[i] = 0;
-		ret += points;
+		reward = 0.0f;
+		// Hard-coded for two flow categories
+		for (auto i = 0u; i < 2; ++i)
+		{
+			reward += score[i];
+			score[i] = 0; 
+		}
+		std::cout << "Obtained reward = " << reward << std::endl;
+		index = 1;
 	}
-	// // Negative reward for not allowing any flows, should motivate agent to keep some open.
-	// // Both for BE and QoS traffic, punishment for no QoS is much larger, though.
-	// if (this->sendApplication->getActiveGoal(0) == 0)
-	// {
-	// 	ret -= 18; 
-	// }
-	// if (this->sendApplication->getActiveGoal(1) == 0)
-	// {
-	// 	ret -= 2;
-	// }
-	std::cout << "Obtained reward = " << ret << std::endl;
-	return ret; 
+	else
+	{
+		std::cout << "re-used reward = " << reward << std::endl;
+		index = 0;
+	}
+	return reward;
 }
 
 

@@ -44,12 +44,14 @@ class MyProcessor(Processor):
 	
 	def process_observation(self, obs):
 		if not obs:
-			obs = [0, 0, 1, 0, 0, 1, 0.5]
+			# obs = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1]
+			obs = [0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 		else:
 			# Unpack/flatten the box spaces to singular values
 			fn = lambda x: x if type(x) in [int, float] else x[0]
 			obs = [fn(x) for x in obs]
 		obs.append(1)
+		self.lastObs = obs
 		return obs
 		
 
@@ -57,10 +59,10 @@ class MyProcessor(Processor):
 parser = argparse.ArgumentParser(description='Start simulation script on/off')
 parser.add_argument('--start', type=int, default=1, help='Start ns-3 simulation script 0/1, Default: 1')
 parser.add_argument('--iterations', type=int, default=1, help='Number of iterations, Default: 1')
-parser.add_argument('--port', type=int, default=5555, help='Port to use for the connection.')
+parser.add_argument('--port', type=int, default=5561, help='Port to use for the connection.')
 parser.add_argument('--eval', type=int, default=0, help='Set eval to 1 to run evaluation only, with saved weights from current directory.')
 parser.add_argument('--no_test', type=int, default=0, help='Set to 1 to disable testing')
-parser.add_argument('--save_weights', type=int, default=1, help='Set to 1 to save weights to file.')
+parser.add_argument('--save_weights', type=int, default=0, help='Set to 1 to save weights to file.')
 parser.add_argument('--load_weights', type=int, default=1, help='Set to 0 to disable weight loading.')
 
 
@@ -101,29 +103,23 @@ try:
 	observation_input = Input(shape=(1,ob_shape_dim), name='observation_input')
 	action_input = Input(shape=(nb_actions,), name='action_input')
 	actor = Flatten()(observation_input)
+	actor = Dense(2120)(actor)
 	actor = tf.keras.layers.LeakyReLU()(actor)
-	actor = Dense(8)(actor)#, activation=swish)(actor)
-	actor = tf.keras.layers.LeakyReLU()(actor)
-	actor = Dense(12)(actor)#, activation=swish)(actor)
-	actor = tf.keras.layers.LeakyReLU()(actor)
-	actor = Dense(16)(actor)#, activation=swish)(actor)
-	actor = tf.keras.layers.LeakyReLU()(actor)
-	actor = Dense(12)(actor)#, activation=swish)(actor)
-	actor = tf.keras.layers.LeakyReLU()(actor)
-	actor = Dense(8)(actor)#, activation=swish)(actor)
-	actor = tf.keras.layers.LeakyReLU()(actor)
+	# Following design idiom, one hidden layer is plenty for most problems
+	# And that the ideal node count is somewhere between input and output node counts
+	# in this case, we take approximately the average (14 + 4225 ~= 2120)
 	actor = Dense(nb_actions, activation='softmax')(actor)
 
 	model = Model(inputs=observation_input, outputs=actor)
-	memory = SequentialMemory(limit=50000, window_length=1)
-	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.2, value_test=0.05, nb_steps=50000)
-	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=100, target_model_update=1e-3, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
+	memory = SequentialMemory(limit=3000, window_length=1)
+	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1, value_min=0.05, value_test=0, nb_steps=50000)
+	agent = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=150, target_model_update=25, policy=policy, processor=MyProcessor(ac_space.spaces[0].n))
 	agent.compile(Adam(lr=1e-3), metrics=['mae'])
 
-	if args.load_weights:
-		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
 	if not runEvalOnly:
-		agent.fit(env, nb_steps=50000, visualize=False, verbose=1, nb_max_episode_steps=50)
+		if args.load_weights:
+			agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
+		agent.fit(env, nb_steps=50000, visualize=False, verbose=2, nb_max_episode_steps=125)
 
 		# After training is done, we save the final weights.
 		if args.save_weights:
@@ -134,7 +130,7 @@ try:
 			agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
 	else:
 		agent.load_weights('dqn_{}_weights.h5f'.format(ENV_NAME))
-		agent.test(env, nb_episodes=1, visualize=True, nb_max_episode_steps=100)
+		agent.test(env, nb_episodes=3, visualize=True, nb_max_episode_steps=100)
 except KeyboardInterrupt:
 	print("Ctrl-C -> Exit")
 finally:
